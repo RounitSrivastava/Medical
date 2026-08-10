@@ -1,0 +1,38 @@
+:root {
+  --primary: #0284c7; /* Clinical Blue */
+  --secondary: #0ea5e9; /* Light Blue */
+  --bg-color: #ffffff; /* White background */
+  --bg-secondary: #f8fafc; /* Very light gray for panels */
+  --text-main: #0f172a; /* Dark gray text */
+  --text-muted: #64748b; /* Medium gray */
+  --panel-bg: #ffffff;
+  --border-glow: rgba(2, 132, 199, 0.2);
+  --border-color: #e2e8f0;
+}
+
+* {
+  box-sizing: border-box;
+  padding: 0;
+  margin: 0;
+}
+
+html,
+body {
+  max-width: 100vw;
+  overflow-x: hidden;
+  background-color: var(--bg-secondary);
+  color: var(--text-main);
+  font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+}
+
+a {
+  color: inherit;
+  text-decoration: none;
+}
+
+button {
+  background: none;
+  border: none;
+  cursor: pointer;
+  font-family: inherit;
+}

@@ -190,6 +190,9 @@ export default function Consultation() {
     } else {
       console.warn("Speech Synthesis not supported in this browser.");
       setAvatarStatus("idle");
+    }
+  };
+
   const [username, setUsername] = useState<string>("Patient");
   const [showAppointments, setShowAppointments] = useState(false);
   const [showReport, setShowReport] = useState(false);

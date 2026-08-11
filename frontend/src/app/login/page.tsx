@@ -9,10 +9,39 @@ export default function Login() {
   const [password, setPassword] = useState('');
   const router = useRouter();
 
-  const handleLogin = (e: React.FormEvent) => {
+  const [loading, setLoading] = useState(false);
+  const [error, setError] = useState('');
+
+  const handleLogin = async (e: React.FormEvent) => {
     e.preventDefault();
-    // Simulate login and redirect to consultation
-    router.push('/consultation');
+    setLoading(true);
+    setError('');
+
+    try {
+      const res = await fetch('http://localhost:8000/api/login', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ email, password })
+      });
+      
+      const data = await res.json();
+      
+      if (res.ok) {
+        if (data.user.role === 'admin') {
+          router.push('/admin');
+        } else {
+          localStorage.setItem('currentUser', JSON.stringify(data.user));
+          router.push('/consultation');
+        }
+      } else {
+        setError(data.detail || 'Login failed');
+      }
+    } catch (err) {
+      console.error(err);
+      setError('Failed to connect to server.');
+    } finally {
+      setLoading(false);
+    }
   };
 
   return (
@@ -24,15 +53,17 @@ export default function Login() {
           <p className={styles.subtitle}>Sign in to access your medical consultation</p>
         </div>
 
+        {error && <div style={{ color: '#ef4444', background: '#fef2f2', padding: '0.8rem', borderRadius: '8px', textAlign: 'center', marginBottom: '1rem' }}>{error}</div>}
+
         <form onSubmit={handleLogin} className={styles.form}>
           <div className={styles.inputGroup}>
-            <label htmlFor="email">Email Address</label>
+            <label htmlFor="email">Email or Username</label>
             <input 
-              type="email" 
+              type="text" 
               id="email"
               value={email}
               onChange={(e) => setEmail(e.target.value)}
-              placeholder="patient@example.com"
+              placeholder="patient@example.com or admin"
               required 
             />
           </div>
@@ -48,13 +79,13 @@ export default function Login() {
             />
           </div>
           
-          <button type="submit" className={styles.loginBtn}>
-            Secure Login
+          <button type="submit" className={styles.loginBtn} disabled={loading}>
+            {loading ? 'Authenticating...' : 'Secure Login'}
           </button>
         </form>
 
         <div className={styles.footer}>
-          <p>Need an account? <a href="#">Register as a new patient</a></p>
+          <p>Need an account? <a href="/register">Register as a new patient</a></p>
           <p className={styles.disclaimer}>
             Access to this portal is restricted to authorized patients and medical personnel.
           </p>

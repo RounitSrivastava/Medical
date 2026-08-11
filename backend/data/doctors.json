@@ -1,0 +1,62 @@
+[
+  {
+    "id": "1",
+    "name": "Dr. Rajesh Sharma",
+    "specialty": "Senior Cardiologist",
+    "experience": "15 Years",
+    "rating": "4.9 \u2b50",
+    "lat": 40.7128,
+    "lng": -74.006,
+    "area": "Downtown"
+  },
+  {
+    "id": "2",
+    "name": "Dr. Priya Patel",
+    "specialty": "Interventional Cardiologist",
+    "experience": "8 Years",
+    "rating": "4.8 \u2b50",
+    "lat": 40.73,
+    "lng": -73.995,
+    "area": "Midtown"
+  },
+  {
+    "id": "3",
+    "name": "Dr. Amit Kumar",
+    "specialty": "Cardiothoracic Surgeon",
+    "experience": "20 Years",
+    "rating": "5.0 \u2b50",
+    "lat": 40.6892,
+    "lng": -74.0445,
+    "area": "Westside"
+  },
+  {
+    "id": "4",
+    "name": "Dr. Sneha Gupta",
+    "specialty": "Pediatric Cardiologist",
+    "experience": "12 Years",
+    "rating": "4.7 \u2b50",
+    "lat": 40.758,
+    "lng": -73.9855,
+    "area": "North Hills"
+  },
+  {
+    "id": "5",
+    "name": "Dr. Vikram Singh",
+    "specialty": "Cardiologist",
+    "experience": "10 Years",
+    "rating": "4.6 \u2b50",
+    "lat": 40.705,
+    "lng": -74.015,
+    "area": "East End"
+  },
+  {
+    "name": "Rishabh",
+    "specialty": "Cardiothoracic Surgeon",
+    "experience": "2",
+    "rating": "3.4",
+    "lat": 23.1232,
+    "lng": -61.323,
+    "area": "Bhubaneswar",
+    "id": "6"
+  }
+]

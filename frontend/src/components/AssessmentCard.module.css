@@ -1,0 +1,123 @@
+.card {
+  background: white;
+  border: 1px solid #e2e8f0;
+  border-radius: 16px;
+  padding: 1.5rem;
+  margin-top: 1rem;
+  width: 100%;
+  max-width: 400px;
+  box-shadow: 0 10px 25px rgba(0,0,0,0.05);
+}
+
+.title {
+  font-size: 1.1rem;
+  font-weight: 700;
+  color: var(--text-main);
+  margin-bottom: 1.2rem;
+  text-align: center;
+}
+
+.formGroup {
+  margin-bottom: 1.2rem;
+}
+
+.label {
+  display: block;
+  font-size: 0.9rem;
+  font-weight: 600;
+  color: var(--text-muted);
+  margin-bottom: 0.5rem;
+}
+
+.slider {
+  width: 100%;
+  margin-bottom: 0.5rem;
+  accent-color: #ef4444;
+}
+
+.painValue {
+  text-align: center;
+  font-weight: 800;
+  font-size: 1.2rem;
+  color: #ef4444;
+}
+
+.toggleGroup {
+  display: flex;
+  gap: 0.5rem;
+  margin-bottom: 1rem;
+}
+
+.toggleBtn {
+  flex: 1;
+  padding: 0.5rem;
+  border: 1px solid #cbd5e1;
+  background: white;
+  border-radius: 8px;
+  font-weight: 600;
+  color: var(--text-muted);
+  cursor: pointer;
+  transition: all 0.2s;
+}
+
+.toggleBtn.active {
+  background: var(--primary);
+  color: white;
+  border-color: var(--primary);
+}
+
+.submitBtn {
+  width: 100%;
+  padding: 0.8rem;
+  background: var(--primary);
+  color: white;
+  border: none;
+  border-radius: 50px;
+  font-weight: 700;
+  cursor: pointer;
+  margin-top: 1rem;
+  transition: all 0.3s ease;
+}
+
+.submitBtn:hover {
+  background: var(--secondary);
+  transform: translateY(-2px);
+}
+
+/* Result Chart */
+.resultContainer {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  padding: 1rem 0;
+}
+
+.circle {
+  width: 120px;
+  height: 120px;
+  border-radius: 50%;
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  font-size: 2rem;
+  font-weight: 800;
+  color: white;
+  margin-bottom: 1rem;
+  box-shadow: 0 10px 20px rgba(0,0,0,0.1);
+  animation: popIn 0.5s cubic-bezier(0.175, 0.885, 0.32, 1.275);
+}
+
+.highRisk { background: linear-gradient(135deg, #ef4444, #b91c1c); }
+.medRisk { background: linear-gradient(135deg, #f59e0b, #d97706); }
+.lowRisk { background: linear-gradient(135deg, #22c55e, #15803d); }
+
+.resultText {
+  text-align: center;
+  font-weight: 600;
+  color: var(--text-main);
+}
+
+@keyframes popIn {
+  0% { transform: scale(0.5); opacity: 0; }
+  100% { transform: scale(1); opacity: 1; }
+}

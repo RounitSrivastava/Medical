@@ -4,12 +4,14 @@ import React, { useState, useEffect, useRef } from "react";
 import styles from "./page.module.css";
 import Avatar from "../../components/Avatar";
 import BookingModal from "../../components/BookingModal";
+import AssessmentCard from "../../components/AssessmentCard";
 import { useRouter } from "next/navigation";
 
 type Message = {
   id: number;
   sender: "user" | "ai";
   text: string;
+  type?: "text" | "assessment";
 };
 
 export default function Consultation() {
@@ -89,6 +91,22 @@ export default function Consultation() {
     setMessages((prev) => [...prev, newMsg]);
     setInputValue("");
     setAvatarStatus("thinking");
+    
+    // Intercept Assessment trigger
+    const lowerText = text.toLowerCase();
+    if (lowerText.includes("assess") || lowerText.includes("risk") || lowerText.includes("check")) {
+      setTimeout(() => {
+        const aiMsg: Message = { 
+          id: Date.now() + 1, 
+          sender: "ai", 
+          text: "I can help with that. Please complete this quick interactive assessment so I can calculate your risk score.",
+          type: "assessment"
+        };
+        setMessages((prev) => [...prev, aiMsg]);
+        speakResponse(aiMsg.text);
+      }, 1000);
+      return;
+    }
 
     try {
       const res = await fetch("http://localhost:8000/api/chat", {
@@ -172,11 +190,16 @@ export default function Consultation() {
     } else {
       console.warn("Speech Synthesis not supported in this browser.");
       setAvatarStatus("idle");
-    }
-  };
-
   const [username, setUsername] = useState<string>("Patient");
   const [showAppointments, setShowAppointments] = useState(false);
+  const [showReport, setShowReport] = useState(false);
+  
+  // Calculate some dummy stats for the report
+  const patientVitals = {
+    hr: "72 BPM",
+    bp: "118/78",
+    o2: "98%"
+  };
 
   useEffect(() => {
     if (typeof window !== 'undefined') {
@@ -207,6 +230,9 @@ export default function Consultation() {
           <div className={styles.userInfo}>
             Welcome, <strong>{username}</strong>
           </div>
+          <button onClick={() => setShowReport(true)} className={styles.reportBtn}>
+            📄 Medical Report
+          </button>
           <button onClick={() => setShowAppointments(true)} className={styles.appointmentsBtn}>
             📅 My Appointments
           </button>
@@ -218,9 +244,9 @@ export default function Consultation() {
           </button>
         </div>
       </header>
-
+      
+      {/* existing code... */}
       <div className={styles.dashboard}>
-        
         {/* Left Side: Avatar & Vitals */}
         <div className={styles.sidebar}>
           <div className={styles.avatarSection}>
@@ -233,15 +259,15 @@ export default function Consultation() {
             <h3 className={styles.vitalsTitle}>Patient Vitals</h3>
             <div className={styles.vitalCard}>
               <span className={styles.vitalLabel}>Heart Rate</span>
-              <span className={styles.vitalValue}>72 BPM <span className={styles.vitalNormal}>(Normal)</span></span>
+              <span className={styles.vitalValue}>{patientVitals.hr} <span className={styles.vitalNormal}>(Normal)</span></span>
             </div>
             <div className={styles.vitalCard}>
               <span className={styles.vitalLabel}>Blood Pressure</span>
-              <span className={styles.vitalValue}>118/78 <span className={styles.vitalNormal}>(Optimal)</span></span>
+              <span className={styles.vitalValue}>{patientVitals.bp} <span className={styles.vitalNormal}>(Optimal)</span></span>
             </div>
             <div className={styles.vitalCard}>
               <span className={styles.vitalLabel}>Oxygen</span>
-              <span className={styles.vitalValue}>98% <span className={styles.vitalNormal}>(Normal)</span></span>
+              <span className={styles.vitalValue}>{patientVitals.o2} <span className={styles.vitalNormal}>(Normal)</span></span>
             </div>
             <button className={styles.findDoctorBtn} onClick={() => setIsBookingModalOpen(true)}>
               <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
@@ -274,6 +300,19 @@ export default function Consultation() {
                       >
                         🔊
                       </button>
+                    )}
+                    {m.type === "assessment" && (
+                      <AssessmentCard 
+                        onComplete={(score, level) => {
+                          const aiMsg: Message = { 
+                            id: Date.now(), 
+                            sender: "ai", 
+                            text: `Based on your responses, you have a ${score}% risk score, which indicates a ${level}. I highly recommend clicking 'Find Local Cardiologist' to book an appointment soon. I have also enabled your Medical Report generation.` 
+                          };
+                          setMessages((prev) => [...prev, aiMsg]);
+                          speakResponse(aiMsg.text);
+                        }} 
+                      />
                     )}
                   </div>
                 </div>
@@ -338,6 +377,67 @@ export default function Consultation() {
             </div>
           </div>
         </div>
+      )}
+
+      {/* Auto-Generated Medical Report Modal */}
+      {showReport && (
+        <div className={styles.modalOverlay} onClick={() => setShowReport(false)}>
+          <div className={`${styles.modalContent} printable-report`} onClick={e => e.stopPropagation()} style={{padding: '3rem', maxWidth: '800px', backgroundColor: 'white'}}>
+            <div className="no-print" style={{display:'flex', justifyContent:'flex-end', marginBottom:'1rem', gap:'1rem'}}>
+              <button onClick={() => window.print()} style={{background:'var(--primary)', color:'white', border:'none', padding:'0.8rem 1.5rem', borderRadius:'8px', fontWeight:600, cursor:'pointer'}}>
+                📥 Download PDF
+              </button>
+              <button onClick={() => setShowReport(false)} style={{background:'#f1f5f9', color:'#334155', border:'none', padding:'0.8rem 1.5rem', borderRadius:'8px', fontWeight:600, cursor:'pointer'}}>
+                Close
+              </button>
+            </div>
+            
+            <div style={{borderBottom: '2px solid #e2e8f0', paddingBottom: '1.5rem', marginBottom: '2rem'}}>
+              <h1 style={{fontSize: '2.2rem', color: '#0f172a', margin: 0}}>Medical Assessment Report</h1>
+              <p style={{color: '#64748b', fontSize: '1.1rem', marginTop: '0.5rem'}}>Generated by CardioCare AI Assistant (Dr. Aisha)</p>
+            </div>
+
+            <div style={{display: 'flex', gap: '2rem', marginBottom: '2rem'}}>
+              <div style={{flex: 1, background: '#f8fafc', padding: '1.5rem', borderRadius: '12px', border: '1px solid #e2e8f0'}}>
+                <h3 style={{color: '#334155', marginBottom: '1rem'}}>Patient Details</h3>
+                <p><strong>Name:</strong> {username}</p>
+                <p><strong>Date:</strong> {new Date().toLocaleDateString()}</p>
+                <p><strong>Time:</strong> {new Date().toLocaleTimeString()}</p>
+              </div>
+              <div style={{flex: 1, background: '#f8fafc', padding: '1.5rem', borderRadius: '12px', border: '1px solid #e2e8f0'}}>
+                <h3 style={{color: '#334155', marginBottom: '1rem'}}>Vitals Logged</h3>
+                <p><strong>Heart Rate:</strong> {patientVitals.hr}</p>
+                <p><strong>Blood Pressure:</strong> {patientVitals.bp}</p>
+                <p><strong>Oxygen Level:</strong> {patientVitals.o2}</p>
+              </div>
+            </div>
+
+            <div style={{marginBottom: '2rem'}}>
+              <h3 style={{color: '#0f172a', borderBottom: '1px solid #e2e8f0', paddingBottom: '0.5rem'}}>AI Consultation Summary</h3>
+              <p style={{lineHeight: 1.6, color: '#475569', marginTop: '1rem'}}>
+                The patient engaged in a consultation with Dr. Aisha. An interactive cardiac risk assessment was requested and processed. 
+                Based on the real-time interaction and provided vitals (Heart Rate: {patientVitals.hr}), the patient's cardiovascular state appears stable, but preventative care is recommended.
+              </p>
+            </div>
+
+            <div style={{marginBottom: '2rem'}}>
+              <h3 style={{color: '#0f172a', borderBottom: '1px solid #e2e8f0', paddingBottom: '0.5rem'}}>Personalized Diet & Lifestyle Plan</h3>
+              <ul style={{lineHeight: 1.8, color: '#475569', marginTop: '1rem', paddingLeft: '1.5rem'}}>
+                <li><strong>Dietary:</strong> Increase intake of Omega-3 fatty acids (e.g., salmon, walnuts). Reduce sodium intake to &lt;1,500mg per day to maintain optimal blood pressure ({patientVitals.bp}).</li>
+                <li><strong>Activity:</strong> 30 minutes of moderate aerobic exercise (brisk walking) 5 days a week.</li>
+                <li><strong>Monitoring:</strong> Continue monitoring resting heart rate and schedule a follow-up with a local cardiologist.</li>
+              </ul>
+            </div>
+            
+            <div style={{marginTop: '4rem', paddingTop: '2rem', borderTop: '1px dashed #cbd5e1', textAlign: 'center', color: '#94a3b8', fontSize: '0.9rem'}}>
+              <p>This report is generated by Artificial Intelligence for informational purposes and does not constitute a formal medical diagnosis. Please consult a registered physician for medical advice.</p>
+            </div>
+          </div>
+        </div>
+      )}
+    </main>
+  );
+}</div>
       )}
     </main>
   );

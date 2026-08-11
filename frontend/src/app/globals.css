@@ -36,3 +36,26 @@ button {
   cursor: pointer;
   font-family: inherit;
 }
+
+@media print {
+  body * {
+    visibility: hidden;
+  }
+  .printable-report, .printable-report * {
+    visibility: visible;
+  }
+  .printable-report {
+    position: absolute;
+    left: 0;
+    top: 0;
+    width: 100%;
+    margin: 0;
+    padding: 0;
+    box-shadow: none;
+    border: none;
+    border-radius: 0;
+  }
+  .no-print {
+    display: none !important;
+  }
+}

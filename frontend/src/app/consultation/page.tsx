@@ -109,7 +109,7 @@ export default function Consultation() {
     }
 
     try {
-      const res = await fetch("http://localhost:8000/api/chat", {
+      const res = await fetch("https://medical-x8t7.onrender.com/api/chat", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ message: text }),
@@ -434,10 +434,6 @@ export default function Consultation() {
             </div>
           </div>
         </div>
-      )}
-    </main>
-  );
-}</div>
       )}
     </main>
   );

@@ -29,7 +29,7 @@ export default function AdminPage() {
   const [area, setArea] = useState('');
 
   const fetchDoctors = () => {
-    fetch('http://localhost:8000/api/doctors')
+    fetch('https://medical-x8t7.onrender.com/api/doctors')
       .then(res => res.json())
       .then(data => setDoctors(data))
       .catch(err => console.error("Failed to fetch doctors", err));
@@ -53,7 +53,7 @@ export default function AdminPage() {
     };
     
     try {
-      const res = await fetch('http://localhost:8000/api/doctors', {
+      const res = await fetch('https://medical-x8t7.onrender.com/api/doctors', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify(newDoc)

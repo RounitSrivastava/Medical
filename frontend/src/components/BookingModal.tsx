@@ -52,7 +52,7 @@ export default function BookingModal({ onClose }: BookingModalProps) {
   const [userLocation, setUserLocation] = useState<{lat: number, lng: number} | null>(null);
 
   React.useEffect(() => {
-    fetch('http://localhost:8000/api/doctors')
+    fetch('https://medical-x8t7.onrender.com/api/doctors')
       .then(res => res.json())
       .then(data => {
         setDoctors(data);

@@ -23,7 +23,7 @@ export default function Register() {
     setError('');
     
     try {
-      const res = await fetch('http://localhost:8000/api/register', {
+      const res = await fetch('https://medical-x8t7.onrender.com/api/register', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({

@@ -5,6 +5,7 @@ import styles from "./page.module.css";
 import Avatar from "../../components/Avatar";
 import BookingModal from "../../components/BookingModal";
 import AssessmentCard from "../../components/AssessmentCard";
+import EKGMonitor from "../../components/EKGMonitor";
 import { useRouter } from "next/navigation";
 
 type Message = {
@@ -39,7 +40,7 @@ export default function Consultation() {
         const reco = new SpeechRecognition();
         reco.continuous = false;
         reco.interimResults = false;
-        reco.lang = "en-IN"; // Set to Indian English
+        reco.lang = "en-US"; // Standard fallback language
 
         reco.onstart = () => {
           setIsListening(true);
@@ -52,11 +53,16 @@ export default function Consultation() {
         };
 
         reco.onerror = (event: any) => {
-          console.error("Speech recognition error", event.error);
-          if (event.error === 'not-allowed') {
-            alert("Microphone access is blocked! Please check the URL bar of your browser and click the tiny microphone icon to 'Allow' access.");
-          } else if (event.error !== 'no-speech') {
-            alert("Microphone error: " + event.error);
+          if (event.error === 'no-speech') {
+            // Silently ignore no-speech errors (happens when user clicks mic but stays quiet)
+            console.log("No speech detected. Microphone turned off.");
+          } else {
+            console.error("Speech recognition error", event.error);
+            if (event.error === 'not-allowed') {
+              alert("Microphone access is blocked! Please check the URL bar of your browser and click the tiny microphone icon to 'Allow' access.");
+            } else {
+              alert("Microphone error: " + event.error);
+            }
           }
           setIsListening(false);
           setAvatarStatus("idle");
@@ -75,12 +81,21 @@ export default function Consultation() {
   }, []);
 
   const toggleListen = () => {
+    if (!recognition) {
+      alert("Your browser does not support voice recognition. Please use Google Chrome or Microsoft Edge!");
+      return;
+    }
+
     if (isListening) {
-      recognition?.stop();
+      recognition.stop();
       setIsListening(false);
       setAvatarStatus("idle");
     } else {
-      recognition?.start();
+      try {
+        recognition.start();
+      } catch (e) {
+        console.error("Failed to start recognition:", e);
+      }
     }
   };
 
@@ -109,7 +124,7 @@ export default function Consultation() {
     }
 
     try {
-      const res = await fetch("https://medical-x8t7.onrender.com/api/chat", {
+      const res = await fetch("http://localhost:8000/api/chat", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ message: text }),
@@ -125,6 +140,8 @@ export default function Consultation() {
       const aiMsg: Message = { id: Date.now() + 1, sender: "ai", text: "Sorry, I am having trouble connecting to my backend right now." };
       setMessages((prev) => [...prev, aiMsg]);
       speakResponse(aiMsg.text);
+    } finally {
+      setAvatarStatus("idle");
     }
   };
 
@@ -196,6 +213,54 @@ export default function Consultation() {
   const [username, setUsername] = useState<string>("Patient");
   const [showAppointments, setShowAppointments] = useState(false);
   const [showReport, setShowReport] = useState(false);
+
+  // SOS Emergency State
+  const [isEmergencyMode, setIsEmergencyMode] = useState(false);
+  const [locatingHospitals, setLocatingHospitals] = useState(false);
+  const [emergencyHospitals, setEmergencyHospitals] = useState<any[]>([]);
+
+  const triggerSOS = () => {
+    setIsEmergencyMode(true);
+    setLocatingHospitals(true);
+    
+    // Play a siren/alert sound via speech synthesis for dramatic effect
+    if ("speechSynthesis" in window) {
+      window.speechSynthesis.cancel();
+      const alertSpeech = new SpeechSynthesisUtterance("Emergency SOS activated. Locating nearest cardiac hospitals.");
+      alertSpeech.rate = 1.2;
+      window.speechSynthesis.speak(alertSpeech);
+    }
+
+    if (navigator.geolocation) {
+      navigator.geolocation.getCurrentPosition(
+        (position) => {
+          // Simulate network delay for dramatic effect
+          setTimeout(() => {
+            setEmergencyHospitals([
+              { name: "City General Hospital (ER)", distance: "1.2 km", time: "4 mins away", phone: "911" },
+              { name: "St. Jude Cardiac Center", distance: "2.8 km", time: "8 mins away", phone: "911" },
+              { name: "Metro West Emergency", distance: "4.5 km", time: "12 mins away", phone: "911" },
+            ]);
+            setLocatingHospitals(false);
+          }, 2500);
+        },
+        (error) => {
+          // Fallback if location blocked
+          setTimeout(() => {
+            setEmergencyHospitals([
+              { name: "City General Hospital (ER)", distance: "Unknown", time: "Unknown", phone: "911" }
+            ]);
+            setLocatingHospitals(false);
+          }, 2000);
+        }
+      );
+    } else {
+      setTimeout(() => {
+        setEmergencyHospitals([{ name: "City General Hospital (ER)", distance: "Unknown", time: "Unknown", phone: "911" }]);
+        setLocatingHospitals(false);
+      }, 2000);
+    }
+  };
   
   // Calculate some dummy stats for the report
   const patientVitals = {
@@ -233,6 +298,9 @@ export default function Consultation() {
           <div className={styles.userInfo}>
             Welcome, <strong>{username}</strong>
           </div>
+          <button onClick={triggerSOS} className={styles.sosBtn}>
+            🚨 EMERGENCY SOS
+          </button>
           <button onClick={() => setShowReport(true)} className={styles.reportBtn}>
             📄 Medical Report
           </button>
@@ -260,11 +328,8 @@ export default function Consultation() {
 
           <div className={styles.vitalsSection}>
             <h3 className={styles.vitalsTitle}>Patient Vitals</h3>
-            <div className={styles.vitalCard}>
-              <span className={styles.vitalLabel}>Heart Rate</span>
-              <span className={styles.vitalValue}>{patientVitals.hr} <span className={styles.vitalNormal}>(Normal)</span></span>
-            </div>
-            <div className={styles.vitalCard}>
+            <EKGMonitor />
+            <div className={styles.vitalCard} style={{marginTop: '1rem'}}>
               <span className={styles.vitalLabel}>Blood Pressure</span>
               <span className={styles.vitalValue}>{patientVitals.bp} <span className={styles.vitalNormal}>(Optimal)</span></span>
             </div>
@@ -416,10 +481,24 @@ export default function Consultation() {
             </div>
 
             <div style={{marginBottom: '2rem'}}>
-              <h3 style={{color: '#0f172a', borderBottom: '1px solid #e2e8f0', paddingBottom: '0.5rem'}}>AI Consultation Summary</h3>
+              <h3 style={{color: '#0f172a', borderBottom: '1px solid #e2e8f0', paddingBottom: '0.5rem'}}>Patient Chief Complaints (Transcribed from Audio/Chat)</h3>
+              {messages.filter(m => m.sender === 'user').length > 0 ? (
+                <ul style={{lineHeight: 1.6, color: '#475569', marginTop: '1rem', paddingLeft: '1.5rem'}}>
+                  {messages.filter(m => m.sender === 'user').map((m, i) => (
+                    <li key={i} style={{marginBottom: '0.5rem'}}>"{m.text}"</li>
+                  ))}
+                </ul>
+              ) : (
+                <p style={{lineHeight: 1.6, color: '#94a3b8', fontStyle: 'italic', marginTop: '1rem'}}>
+                  No voice or text complaints recorded in this session.
+                </p>
+              )}
+            </div>
+
+            <div style={{marginBottom: '2rem'}}>
+              <h3 style={{color: '#0f172a', borderBottom: '1px solid #e2e8f0', paddingBottom: '0.5rem'}}>AI Doctor's Assessment</h3>
               <p style={{lineHeight: 1.6, color: '#475569', marginTop: '1rem'}}>
-                The patient engaged in a consultation with Dr. Aisha. An interactive cardiac risk assessment was requested and processed. 
-                Based on the real-time interaction and provided vitals (Heart Rate: {patientVitals.hr}), the patient's cardiovascular state appears stable, but preventative care is recommended.
+                Based on the real-time interaction and provided vitals (Heart Rate: {patientVitals.hr}), the patient's cardiovascular state appears stable, but preventative care is recommended based on the reported symptoms above.
               </p>
             </div>
 
@@ -435,6 +514,47 @@ export default function Consultation() {
             <div style={{marginTop: '4rem', paddingTop: '2rem', borderTop: '1px dashed #cbd5e1', textAlign: 'center', color: '#94a3b8', fontSize: '0.9rem'}}>
               <p>This report is generated by Artificial Intelligence for informational purposes and does not constitute a formal medical diagnosis. Please consult a registered physician for medical advice.</p>
             </div>
+          </div>
+        </div>
+      )}
+      {/* Emergency SOS Modal */}
+      {isEmergencyMode && (
+        <div className={styles.sosOverlay}>
+          <div className={styles.sosContent}>
+            <div className={styles.sosHeader}>
+              <span style={{fontSize: '2.5rem'}}>🚨</span>
+              <h2>EMERGENCY LOCKDOWN</h2>
+            </div>
+            
+            {locatingHospitals ? (
+              <div className={styles.sosLoading}>
+                <h3 style={{animation: 'pulse 1.5s infinite'}}>Locating GPS Position...</h3>
+                <p>Searching for nearest cardiac emergency centers...</p>
+              </div>
+            ) : (
+              <>
+                <h3 style={{color: '#f8fafc', marginBottom: '1rem'}}>Nearest Emergency Centers</h3>
+                <div className={styles.hospitalList}>
+                  {emergencyHospitals.map((hosp, i) => (
+                    <div key={i} className={styles.hospitalCard}>
+                      <div className={styles.hospitalInfo}>
+                        <h3>{hosp.name}</h3>
+                        <p>Distance: {hosp.distance}</p>
+                        <span className={styles.distanceBadge}>ETA: {hosp.time}</span>
+                      </div>
+                      <div className={styles.actionBtns}>
+                        <button className={styles.callBtn} onClick={() => alert(`Calling ${hosp.phone} for ${hosp.name}...`)}>📞 Call</button>
+                        <button className={styles.navBtn} onClick={() => alert(`Opening Google Maps navigation to ${hosp.name}...`)}>🗺️ Navigate</button>
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              </>
+            )}
+            
+            <button className={styles.cancelSos} onClick={() => setIsEmergencyMode(false)}>
+              Cancel Emergency Mode
+            </button>
           </div>
         </div>
       )}

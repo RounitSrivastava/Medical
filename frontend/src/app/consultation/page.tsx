@@ -1,6 +1,6 @@
 "use client";
 
-import React, { useState, useEffect, useRef } from "react";
+import React, { useState, useEffect, useRef, useCallback } from "react";
 import styles from "./page.module.css";
 import Avatar from "../../components/Avatar";
 import BookingModal from "../../components/BookingModal";
@@ -146,46 +146,70 @@ export default function Consultation() {
   };
 
   const speakResponse = (text: string) => {
-    if ("speechSynthesis" in window) {
-      // Cancel any ongoing speech
-      window.speechSynthesis.cancel();
-      
-      setAvatarStatus("speaking");
-      const utterance = new SpeechSynthesisUtterance(text);
-      
-      // Load voices. Browsers load them async, so we might have to wait or just use default
-      let voices = window.speechSynthesis.getVoices();
-      
-      const setVoiceAndSpeak = () => {
-        voices = window.speechSynthesis.getVoices();
-        // Try to explicitly find a female voice (Indian first, then others)
-        const femaleVoice = 
-            voices.find(v => v.name.includes('Heera')) || // Windows Indian Female
-            voices.find(v => v.name.includes('Google हिन्दी')) || // Chrome Indian Female
-            voices.find(v => v.lang.includes('en-IN') && v.name.includes('Female')) || 
-            voices.find(v => v.name.includes('Zira')) || // Windows US Female
-            voices.find(v => v.name.includes('Samantha')) || // Mac US Female
-            voices.find(v => v.name.includes('Google UK English Female')) || // Chrome UK Female
-            voices.find(v => v.name.includes('Female')) || // Generic Female
-            voices.find(v => v.lang.includes('en-IN')) || // Any Indian voice (might be male like Ravi)
-            voices[1] || // Often the 2nd default voice is female if 1st is male
-            voices[0]; // Absolute fallback
-        
-        if (femaleVoice) {
-            utterance.voice = femaleVoice;
-        }
+    if (typeof window === "undefined" || !("speechSynthesis" in window)) {
+      setAvatarStatus("idle");
+      return;
+    }
 
-        utterance.onend = () => {
+    try {
+      // Cancel any ongoing speech safely
+      window.speechSynthesis.cancel();
+
+      // Clean text for speech (remove markdown symbols / emojis that might cause speech synth issues)
+      const cleanText = text
+        .replace(/[*_~`#]/g, '')
+        .replace(/([\u2700-\u27BF]|[\uE000-\uF8FF]|\uD83C[\uDC00-\uDFFF]|\uD83D[\uDC00-\uDFFF]|[\u2011-\u26FF]|\uD83E[\uDD10-\uDDFF])/g, '')
+        .trim();
+
+      if (!cleanText) {
+        setAvatarStatus("idle");
+        return;
+      }
+
+      setAvatarStatus("speaking");
+      const utterance = new SpeechSynthesisUtterance(cleanText);
+      utterance.rate = 1.0;
+      utterance.pitch = 1.0;
+
+      const setVoiceAndSpeak = () => {
+        try {
+          const voices = window.speechSynthesis.getVoices();
+          // Find natural female voice (Indian English first, then standard female)
+          const preferredVoice = 
+            voices.find(v => v.name.includes('Heera')) ||
+            voices.find(v => v.name.includes('Google हिन्दी')) ||
+            voices.find(v => v.lang.includes('en-IN') && v.name.includes('Female')) || 
+            voices.find(v => v.name.includes('Zira')) ||
+            voices.find(v => v.name.includes('Samantha')) ||
+            voices.find(v => v.name.includes('Google UK English Female')) ||
+            voices.find(v => v.name.includes('Female')) ||
+            voices.find(v => v.lang.includes('en-IN')) ||
+            voices[0];
+
+          if (preferredVoice) {
+            utterance.voice = preferredVoice;
+          }
+
+          utterance.onend = () => {
+            setAvatarStatus("idle");
+          };
+
+          utterance.onerror = (e: any) => {
+            // 'interrupted' and 'canceled' are standard when speech is stopped or user sends another message
+            if (e?.error !== 'interrupted' && e?.error !== 'canceled') {
+              console.warn("Speech synthesis state:", e?.error || "stopped");
+            }
+            setAvatarStatus("idle");
+          };
+
+          window.speechSynthesis.speak(utterance);
+        } catch (err) {
+          console.warn("Speech synthesis invocation failed gracefully:", err);
           setAvatarStatus("idle");
-        };
-        utterance.onerror = (e) => {
-          console.error("Speech synthesis error", e);
-          setAvatarStatus("idle");
-        };
-        
-        window.speechSynthesis.speak(utterance);
+        }
       };
 
+      const voices = window.speechSynthesis.getVoices();
       if (voices.length === 0) {
         let fired = false;
         window.speechSynthesis.onvoiceschanged = () => {
@@ -194,18 +218,17 @@ export default function Consultation() {
             setVoiceAndSpeak();
           }
         };
-        // Fallback if event doesn't fire
         setTimeout(() => {
           if (!fired) {
             fired = true;
             setVoiceAndSpeak();
           }
-        }, 1000);
+        }, 300);
       } else {
         setVoiceAndSpeak();
       }
-    } else {
-      console.warn("Speech Synthesis not supported in this browser.");
+    } catch (err) {
+      console.warn("Speech synthesis unavailable:", err);
       setAvatarStatus("idle");
     }
   };
@@ -262,12 +285,20 @@ export default function Consultation() {
     }
   };
   
-  // Calculate some dummy stats for the report
-  const patientVitals = {
+  // Dynamic patient vitals (synced with EKG & Bluetooth)
+  const [patientVitals, setPatientVitals] = useState({
     hr: "72 BPM",
     bp: "118/78",
     o2: "98%"
-  };
+  });
+
+  const handleBpmChange = useCallback((newBpm: number) => {
+    setPatientVitals((prev) => {
+      const formatted = `${newBpm} BPM`;
+      if (prev.hr === formatted) return prev;
+      return { ...prev, hr: formatted };
+    });
+  }, []);
 
   useEffect(() => {
     if (typeof window !== 'undefined') {
@@ -286,37 +317,133 @@ export default function Consultation() {
     }
   }, []);
 
+  const symptomChips = [
+    { 
+      label: "Chest Discomfort", 
+      className: styles.chipChest, 
+      query: "I am feeling some discomfort and tightness in my chest.",
+      icon: (
+        <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
+          <polygon points="13 2 3 14 12 14 11 22 21 10 12 10 13 2" />
+        </svg>
+      )
+    },
+    { 
+      label: "Rapid Heartbeat", 
+      className: styles.chipHeart, 
+      query: "My heart feels like it is beating very fast and fluttering.",
+      icon: (
+        <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
+          <path d="M20.84 4.61a5.5 5.5 0 0 0-7.78 0L12 5.67l-1.06-1.06a5.5 5.5 0 0 0-7.78 7.78l1.06 1.06L12 21.23l7.78-7.78 1.06-1.06a5.5 5.5 0 0 0 0-7.78z" />
+        </svg>
+      )
+    },
+    { 
+      label: "Shortness of Breath", 
+      className: styles.chipBreath, 
+      query: "I feel short of breath even with light activity.",
+      icon: (
+        <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
+          <path d="M12 2v20M17 5H9.5a3.5 3.5 0 0 0 0 7h5a3.5 3.5 0 0 1 0 7H6" />
+        </svg>
+      )
+    },
+    { 
+      label: "Assess My Risk", 
+      className: styles.chipRisk, 
+      query: "Please assess my cardiac risk score.",
+      icon: (
+        <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
+          <line x1="18" y1="20" x2="18" y2="10" />
+          <line x1="12" y1="20" x2="12" y2="4" />
+          <line x1="6" y1="20" x2="6" y2="14" />
+        </svg>
+      )
+    },
+    { 
+      label: "Blood Pressure Advice", 
+      className: styles.chipBp, 
+      query: "Can you advise me on maintaining healthy blood pressure?",
+      icon: (
+        <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
+          <path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z" />
+        </svg>
+      )
+    },
+  ];
+
   return (
     <main className={styles.main}>
       <header className={styles.header}>
         <div className={styles.logoArea}>
-          <span className={styles.logoIcon}>🩺</span>
-          <h1 className={styles.title}>CardioCare Portal</h1>
+          <div className={styles.logoBadge}>
+            <svg className={styles.logoPulse} width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
+              <path d="M22 12h-4l-3 9L9 3l-3 9H2" />
+            </svg>
+          </div>
+          <div className={styles.titleWrapper}>
+            <div className={styles.title}>
+              CardioCare <span className={styles.aiBadge}>AI Portal</span>
+            </div>
+            <div className={styles.telemetryTag}>
+              <span className={styles.liveDot}></span> Telemetry Active
+            </div>
+          </div>
         </div>
         
         <div className={styles.headerRight}>
           <div className={styles.userInfo}>
-            Welcome, <strong>{username}</strong>
+            <div className={styles.userAvatar}>
+              {username ? username.charAt(0).toUpperCase() : "P"}
+            </div>
+            <span>{username}</span>
           </div>
-          <button onClick={triggerSOS} className={styles.sosBtn}>
-            🚨 EMERGENCY SOS
+
+          <button onClick={triggerSOS} className={`${styles.headerBtn} ${styles.sosBtn}`} title="Trigger Emergency SOS">
+            <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
+              <path d="M10.29 3.86L1.82 18a2 2 0 0 0 1.71 3h16.94a2 2 0 0 0 1.71-3L13.71 3.86a2 2 0 0 0-3.42 0z" />
+              <line x1="12" y1="9" x2="12" y2="13" />
+              <line x1="12" y1="17" x2="12.01" y2="17" />
+            </svg>
+            <span>EMERGENCY SOS</span>
           </button>
-          <button onClick={() => setShowReport(true)} className={styles.reportBtn}>
-            📄 Medical Report
+
+          <button onClick={() => setShowReport(true)} className={`${styles.headerBtn} ${styles.reportBtn}`} title="View Medical Report">
+            <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+              <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z" />
+              <polyline points="14 2 14 8 20 8" />
+              <line x1="16" y1="13" x2="8" y2="13" />
+              <line x1="16" y1="17" x2="8" y2="17" />
+              <polyline points="10 9 9 9 8 9" />
+            </svg>
+            <span>Medical Report</span>
           </button>
-          <button onClick={() => setShowAppointments(true)} className={styles.appointmentsBtn}>
-            📅 My Appointments
+
+          <button onClick={() => setShowAppointments(true)} className={`${styles.headerBtn} ${styles.appointmentsBtn}`} title="View My Appointments">
+            <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+              <rect x="3" y="4" width="18" height="18" rx="2" ry="2" />
+              <line x1="16" y1="2" x2="16" y2="6" />
+              <line x1="8" y1="2" x2="8" y2="6" />
+              <line x1="3" y1="10" x2="21" y2="10" />
+            </svg>
+            <span>Appointments</span>
           </button>
+
           <button onClick={() => {
             localStorage.removeItem('currentUser');
             router.push('/');
-          }} className={styles.logoutBtn}>
-            Sign Out
+          }} className={`${styles.headerBtn} ${styles.logoutBtn}`} title="Sign Out">
+            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+              <path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4" />
+              <polyline points="16 17 21 12 16 7" />
+              <line x1="21" y1="12" x2="9" y2="12" />
+            </svg>
+            <span>Exit</span>
           </button>
         </div>
       </header>
       
-      {/* existing code... */}
+      {/* Dashboard Area */}
       <div className={styles.dashboard}>
         {/* Left Side: Avatar & Vitals */}
         <div className={styles.sidebar}>
@@ -324,18 +451,30 @@ export default function Consultation() {
             <Avatar status={avatarStatus} />
             <h2 className={styles.doctorName}>Dr. Aisha</h2>
             <p className={styles.doctorTitle}>AI Chief Cardiologist</p>
+            <div className={styles.doctorStatusBadge}>
+              <span className={styles.liveDot} style={{ width: '6px', height: '6px' }}></span>
+              {avatarStatus === "speaking" ? "Speaking..." : avatarStatus === "thinking" ? "Analyzing..." : avatarStatus === "listening" ? "Listening..." : "Online & Ready"}
+            </div>
+            <div className={styles.tagList}>
+              <span className={styles.tagItem}>⚡ Cardiac AI</span>
+              <span className={styles.tagItem}>💓 Arrhythmia Triage</span>
+              <span className={styles.tagItem}>📊 Risk Screening</span>
+            </div>
           </div>
 
           <div className={styles.vitalsSection}>
-            <h3 className={styles.vitalsTitle}>Patient Vitals</h3>
-            <EKGMonitor />
-            <div className={styles.vitalCard} style={{marginTop: '1rem'}}>
+            <div className={styles.vitalsTitle}>
+              <span>Patient Vitals</span>
+              <span style={{ fontSize: '0.8rem', color: '#0284c7', fontWeight: 600 }}>Live Feed</span>
+            </div>
+            <EKGMonitor onBpmChange={handleBpmChange} />
+            <div className={styles.vitalCard} style={{marginTop: '0.5rem'}}>
               <span className={styles.vitalLabel}>Blood Pressure</span>
-              <span className={styles.vitalValue}>{patientVitals.bp} <span className={styles.vitalNormal}>(Optimal)</span></span>
+              <span className={styles.vitalValue}>{patientVitals.bp} <span className={styles.vitalNormal}>Optimal</span></span>
             </div>
             <div className={styles.vitalCard}>
-              <span className={styles.vitalLabel}>Oxygen</span>
-              <span className={styles.vitalValue}>{patientVitals.o2} <span className={styles.vitalNormal}>(Normal)</span></span>
+              <span className={styles.vitalLabel}>Oxygen Saturation</span>
+              <span className={styles.vitalValue}>{patientVitals.o2} <span className={styles.vitalNormal}>Normal</span></span>
             </div>
             <button className={styles.findDoctorBtn} onClick={() => setIsBookingModalOpen(true)}>
               <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
@@ -350,23 +489,37 @@ export default function Consultation() {
         {/* Right Side: Chat Consultation */}
         <div className={styles.chatSection}>
           <div className={styles.chatHeader}>
-            <h3>Live Consultation</h3>
-            <span className={styles.statusBadge}>Session Active</span>
+            <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
+              <h3>Live Consultation</h3>
+              {avatarStatus === "speaking" && (
+                <div className={styles.soundwave}>
+                  <div className={styles.soundwaveBar}></div>
+                  <div className={styles.soundwaveBar}></div>
+                  <div className={styles.soundwaveBar}></div>
+                  <div className={styles.soundwaveBar}></div>
+                  <div className={styles.soundwaveBar}></div>
+                </div>
+              )}
+            </div>
+            <span className={styles.statusBadge}>Session Encrypted</span>
           </div>
 
           <div className={styles.chatContainer}>
             <div className={styles.chatLog}>
               {messages.map((m) => (
                 <div key={m.id} className={`${styles.messageWrapper} ${m.sender === "user" ? styles.userWrapper : styles.aiWrapper}`}>
+                  <div className={`${styles.messageSender} ${m.sender === "user" ? styles.userSender : styles.aiSender}`}>
+                    {m.sender === "ai" ? "🩺 Dr. Aisha (AI Cardiologist)" : `👤 ${username}`}
+                  </div>
                   <div className={`${styles.message} ${m.sender === "user" ? styles.userMessage : styles.aiMessage}`}>
                     {m.text}
                     {m.sender === "ai" && (
                       <button 
                         onClick={() => speakResponse(m.text)} 
-                        style={{background:'none', border:'none', marginLeft:'10px', cursor:'pointer', fontSize:'1.1rem'}}
-                        title="Listen to message"
+                        className={styles.audioPlayBtn}
+                        title="Read aloud"
                       >
-                        🔊
+                        🔊 Listen
                       </button>
                     )}
                     {m.type === "assessment" && (
@@ -385,32 +538,84 @@ export default function Consultation() {
                   </div>
                 </div>
               ))}
+
+              {avatarStatus === "thinking" && (
+                <div className={`${styles.messageWrapper} ${styles.aiWrapper}`}>
+                  <div className={`${styles.messageSender} ${styles.aiSender}`}>
+                    🩺 Dr. Aisha (AI Cardiologist)
+                  </div>
+                  <div className={styles.typingBubble}>
+                    <div className={styles.typingDot}></div>
+                    <div className={styles.typingDot}></div>
+                    <div className={styles.typingDot}></div>
+                  </div>
+                </div>
+              )}
+
               <div ref={chatEndRef} />
             </div>
 
+            {/* Quick Symptom Chips */}
+            <div className={styles.suggestionTray}>
+              <span className={styles.suggestionLabel}>
+                <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
+                  <circle cx="12" cy="12" r="10" />
+                  <line x1="12" y1="16" x2="12" y2="12" />
+                  <line x1="12" y1="8" x2="12.01" y2="8" />
+                </svg>
+                Suggested Inquiries
+              </span>
+              <div className={styles.promptChips}>
+                {symptomChips.map((chip, index) => (
+                  <button 
+                    key={index} 
+                    className={`${styles.chipBtn} ${chip.className}`}
+                    onClick={() => {
+                      handleSend(chip.query);
+                    }}
+                  >
+                    {chip.icon}
+                    <span>{chip.label}</span>
+                  </button>
+                ))}
+              </div>
+            </div>
+
+            {/* Input Row */}
             <div className={styles.inputArea}>
-              <button 
-                className={`${styles.voiceBtn} ${isListening ? styles.listening : ""}`} 
-                onClick={toggleListen}
-                title="Use Voice"
-              >
-                🎤
-              </button>
-              <input
-                type="text"
-                className={styles.input}
-                placeholder="Message Dr. Aisha..."
-                value={inputValue}
-                onChange={(e) => setInputValue(e.target.value)}
-                onKeyDown={(e) => e.key === "Enter" && handleSend()}
-              />
-              <button className={styles.sendBtn} onClick={() => handleSend()}>
-                ➤
-              </button>
+              <div className={styles.inputRow}>
+                <button 
+                  className={`${styles.voiceBtn} ${isListening ? styles.listening : ""}`} 
+                  onClick={toggleListen}
+                  title="Use Voice (Dictate)"
+                >
+                  <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                    <path d="M12 1a3 3 0 0 0-3 3v8a3 3 0 0 0 6 0V4a3 3 0 0 0-3-3z" />
+                    <path d="M19 10v2a7 7 0 0 1-14 0v-2" />
+                    <line x1="12" y1="19" x2="12" y2="23" />
+                    <line x1="8" y1="23" x2="16" y2="23" />
+                  </svg>
+                </button>
+                <input
+                  type="text"
+                  className={styles.input}
+                  placeholder="Describe your symptoms or ask Dr. Aisha..."
+                  value={inputValue}
+                  onChange={(e) => setInputValue(e.target.value)}
+                  onKeyDown={(e) => e.key === "Enter" && handleSend()}
+                />
+                <button className={styles.sendBtn} onClick={() => handleSend()} title="Send Message">
+                  <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
+                    <line x1="22" y1="2" x2="11" y2="13" />
+                    <polygon points="22 2 15 22 11 13 2 9 22 2" />
+                  </svg>
+                </button>
+              </div>
             </div>
           </div>
         </div>
       </div>
+
 
       {isBookingModalOpen && (
         <BookingModal onClose={() => setIsBookingModalOpen(false)} />

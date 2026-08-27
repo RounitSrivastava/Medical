@@ -9,7 +9,7 @@ interface EKGMonitorProps {
 
 export default function EKGMonitor({ onBpmChange }: EKGMonitorProps) {
   const canvasRef = useRef<HTMLCanvasElement>(null);
-  const [bpm, setBpm] = useState(72);
+  const [bpm, setBpm] = useState(0);
   const [isBluetooth, setIsBluetooth] = useState(false);
   const [deviceName, setDeviceName] = useState<string>("");
   const [isPairing, setIsPairing] = useState(false);
@@ -25,22 +25,7 @@ export default function EKGMonitor({ onBpmChange }: EKGMonitorProps) {
     onBpmChangeRef.current?.(bpm);
   }, [bpm]);
 
-  // Simulated BPM fluctuation when not connected to real Bluetooth
-  useEffect(() => {
-    if (isBluetooth) return;
-    
-    const interval = setInterval(() => {
-      setBpm(prev => {
-        const change = Math.floor(Math.random() * 5) - 2; // -2 to +2
-        let newBpm = prev + change;
-        if (newBpm < 65) newBpm = 65;
-        if (newBpm > 85) newBpm = 85;
-        return newBpm;
-      });
-    }, 2500);
-
-    return () => clearInterval(interval);
-  }, [isBluetooth]);
+  // Removed simulated BPM fluctuation to require real Bluetooth connection
 
   // Dynamic EKG Canvas Waveform Animation
   useEffect(() => {
@@ -67,20 +52,23 @@ export default function EKGMonitor({ onBpmChange }: EKGMonitorProps) {
       data.shift();
       
       time++;
-      // Dynamically calculate ECG spike cycle based on current BPM
-      const cycleLength = Math.max(40, Math.floor(5400 / bpm));
-      const cycle = time % cycleLength;
       let y = height / 2;
       
-      // Simulate physiological ECG waveform (P-Q-R-S-T complexes)
-      if (cycle === 8) y = height / 2 - 4; // P wave
-      else if (cycle === 12) y = height / 2 + 2;
-      else if (cycle === 18) y = height / 2 + 8; // Q wave
-      else if (cycle === 20) y = height / 4 - 18; // R wave (sharp systolic spike)
-      else if (cycle === 22) y = height - 12; // S wave (diastolic rebound)
-      else if (cycle === 25) y = height / 2;
-      else if (cycle === 35) y = height / 2 - 6; // T wave
-      else if (cycle === 38) y = height / 2;
+      if (bpm > 0 && isBluetooth) {
+        // Dynamically calculate ECG spike cycle based on current BPM
+        const cycleLength = Math.max(40, Math.floor(5400 / bpm));
+        const cycle = time % cycleLength;
+        
+        // Simulate physiological ECG waveform (P-Q-R-S-T complexes)
+        if (cycle === 8) y = height / 2 - 4; // P wave
+        else if (cycle === 12) y = height / 2 + 2;
+        else if (cycle === 18) y = height / 2 + 8; // Q wave
+        else if (cycle === 20) y = height / 4 - 18; // R wave (sharp systolic spike)
+        else if (cycle === 22) y = height - 12; // S wave (diastolic rebound)
+        else if (cycle === 25) y = height / 2;
+        else if (cycle === 35) y = height / 2 - 6; // T wave
+        else if (cycle === 38) y = height / 2;
+      }
       
       // Add slight baseline drift noise
       if (y === height / 2) {
@@ -96,10 +84,10 @@ export default function EKGMonitor({ onBpmChange }: EKGMonitorProps) {
         ctx.lineTo(i, data[i]);
       }
       
-      ctx.strokeStyle = isBluetooth ? '#38bdf8' : '#10b981'; // Electric blue for BT, Emerald for Telemetry
+      ctx.strokeStyle = isBluetooth ? '#38bdf8' : '#64748b'; // Electric blue for BT, Slate for Disconnected
       ctx.lineWidth = 2.2;
       ctx.lineJoin = 'round';
-      ctx.shadowColor = isBluetooth ? 'rgba(56, 189, 248, 0.6)' : 'rgba(16, 185, 129, 0.6)';
+      ctx.shadowColor = isBluetooth ? 'rgba(56, 189, 248, 0.6)' : 'rgba(100, 116, 139, 0.2)';
       ctx.shadowBlur = 6;
       ctx.stroke();
 
@@ -142,6 +130,7 @@ export default function EKGMonitor({ onBpmChange }: EKGMonitorProps) {
         setIsBluetooth(false);
         setDeviceName("");
         setBluetoothDevice(null);
+        setBpm(0);
         console.log("Bluetooth device disconnected");
       });
 
@@ -185,6 +174,7 @@ export default function EKGMonitor({ onBpmChange }: EKGMonitorProps) {
     setIsBluetooth(false);
     setDeviceName("");
     setBluetoothDevice(null);
+    setBpm(0);
   };
 
   return (
@@ -202,14 +192,14 @@ export default function EKGMonitor({ onBpmChange }: EKGMonitorProps) {
         
         <div className={`${styles.status} ${isBluetooth ? styles.statusBt : ""}`}>
           <div className={`${styles.statusIndicator} ${isBluetooth ? styles.statusIndicatorBt : ""}`}></div>
-          <span>{isBluetooth ? "Bluetooth Stream" : "Live Telemetry"}</span>
+          <span>{isBluetooth ? "Bluetooth Stream" : "Disconnected"}</span>
         </div>
       </div>
       
       {/* BPM Counter */}
       <div className={styles.bpmContainer}>
         <span className={styles.heartPulseIcon}>❤️</span>
-        <span className={`${styles.bpmValue} ${isBluetooth ? styles.bpmValueBt : ""}`}>{bpm}</span>
+        <span className={`${styles.bpmValue} ${isBluetooth ? styles.bpmValueBt : ""}`}>{bpm > 0 ? bpm : "--"}</span>
         <span className={styles.bpmLabel}>BPM</span>
       </div>
       
@@ -230,7 +220,7 @@ export default function EKGMonitor({ onBpmChange }: EKGMonitorProps) {
               <span>{deviceName || "Heart Rate Watch"}</span>
             </>
           ) : (
-            <span>📡 Virtual Telemetry</span>
+            <span>📡 Waiting for Device</span>
           )}
         </div>
 

@@ -287,14 +287,14 @@ export default function Consultation() {
   
   // Dynamic patient vitals (synced with EKG & Bluetooth)
   const [patientVitals, setPatientVitals] = useState({
-    hr: "72 BPM",
+    hr: "-- BPM",
     bp: "118/78",
     o2: "98%"
   });
 
   const handleBpmChange = useCallback((newBpm: number) => {
     setPatientVitals((prev) => {
-      const formatted = `${newBpm} BPM`;
+      const formatted = newBpm > 0 ? `${newBpm} BPM` : "-- BPM";
       if (prev.hr === formatted) return prev;
       return { ...prev, hr: formatted };
     });
@@ -455,11 +455,7 @@ export default function Consultation() {
               <span className={styles.liveDot} style={{ width: '6px', height: '6px' }}></span>
               {avatarStatus === "speaking" ? "Speaking..." : avatarStatus === "thinking" ? "Analyzing..." : avatarStatus === "listening" ? "Listening..." : "Online & Ready"}
             </div>
-            <div className={styles.tagList}>
-              <span className={styles.tagItem}>⚡ Cardiac AI</span>
-              <span className={styles.tagItem}>💓 Arrhythmia Triage</span>
-              <span className={styles.tagItem}>📊 Risk Screening</span>
-            </div>
+
           </div>
 
           <div className={styles.vitalsSection}>
@@ -555,31 +551,7 @@ export default function Consultation() {
               <div ref={chatEndRef} />
             </div>
 
-            {/* Quick Symptom Chips */}
-            <div className={styles.suggestionTray}>
-              <span className={styles.suggestionLabel}>
-                <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
-                  <circle cx="12" cy="12" r="10" />
-                  <line x1="12" y1="16" x2="12" y2="12" />
-                  <line x1="12" y1="8" x2="12.01" y2="8" />
-                </svg>
-                Suggested Inquiries
-              </span>
-              <div className={styles.promptChips}>
-                {symptomChips.map((chip, index) => (
-                  <button 
-                    key={index} 
-                    className={`${styles.chipBtn} ${chip.className}`}
-                    onClick={() => {
-                      handleSend(chip.query);
-                    }}
-                  >
-                    {chip.icon}
-                    <span>{chip.label}</span>
-                  </button>
-                ))}
-              </div>
-            </div>
+
 
             {/* Input Row */}
             <div className={styles.inputArea}>

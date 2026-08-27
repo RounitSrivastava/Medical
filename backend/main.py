@@ -26,14 +26,18 @@ def read_root():
 
 from dotenv import load_dotenv
 from huggingface_hub import InferenceClient
-from huggingface_hub.errors import HfHubHTTPError
+import requests
+from groq import Groq
 
 load_dotenv()
 HF_TOKEN = os.getenv("HF_TOKEN")
-# Added a 5-second timeout so it never hangs the UI!
-client = InferenceClient(token=HF_TOKEN, timeout=5)
-MODEL_ID = "rounit786757/cardiac-qwen2.5-7b-merged"
-FALLBACK_MODEL = "Qwen/Qwen2.5-7B-Instruct"
+GROQ_API_KEY = os.getenv("GROQ_API_KEY")
+
+# We now use the Colab GPU server instead of Hugging Face's Free API!
+COLAB_API_URL = "https://upstream-glitch-duo.ngrok-free.dev/api/chat"
+
+# Initialize Groq client
+groq_client = Groq(api_key=GROQ_API_KEY) if GROQ_API_KEY else None
 
 @app.post("/api/chat", response_model=ChatResponse)
 async def chat_endpoint(request: ChatRequest):
@@ -44,29 +48,40 @@ async def chat_endpoint(request: ChatRequest):
         {"role": "user", "content": user_msg}
     ]
     
+    import re
+    
     try:
-        # Try HF Model
-        response = client.chat_completion(
-            messages=messages,
-            model=MODEL_ID,
-            max_tokens=150,
-            temperature=0.3
-        )
-        reply = response.choices[0].message.content
-        return ChatResponse(reply=reply)
-        
-    except Exception as e:
-        print(f"HF Server is blocking the connection: {e}")
-        # Demo Fallback: If Hugging Face's servers are completely broken/blocking the model,
-        # we provide a realistic AI response so the web app UI still works perfectly for your presentation!
-        reply = ""
-        if "pain" in user_msg or "chest" in user_msg or "hurt" in user_msg:
-            reply = "I understand you are experiencing chest pain. Since pain can be an indicator of serious cardiac events like angina or myocardial infarction, please ensure you are resting. If the pain radiates to your arm or jaw, press the Emergency SOS button immediately."
-        elif "heart" in user_msg or "rate" in user_msg or "bpm" in user_msg:
-            reply = "Your live EKG indicates a slightly elevated heart rate. This could be due to stress, caffeine, or physical exertion. I recommend sitting down and taking slow, deep breaths for a few minutes while I continue to monitor your vitals."
+        # Connect to your Google Colab GPU!
+        response = requests.post(COLAB_API_URL, json={"message": user_msg}, timeout=60)
+        response.raise_for_status()
+        reply = response.json().get("reply", "")
+        if reply:
+            reply = re.sub(r'[*#_`]', '', reply)
+            return ChatResponse(reply=reply)
         else:
-            reply = "I am analyzing your symptoms against my cardiac database. Please provide more details about how you are feeling, such as any shortness of breath, dizziness, or fatigue."
+            raise Exception("Empty response from Colab")
             
+    except Exception as e:
+        print(f"Colab Server Error/Disconnected: {e}")
+        
+        # Groq Fallback Engine
+        if groq_client:
+            print("Using Groq API Fallback...")
+            try:
+                groq_response = groq_client.chat.completions.create(
+                    messages=messages,
+                    model="qwen/qwen3.8-27b",
+                    temperature=0.3,
+                    max_tokens=150,
+                )
+                reply = groq_response.choices[0].message.content
+                reply = re.sub(r'[*#_`]', '', reply)
+                return ChatResponse(reply=reply)
+            except Exception as groq_e:
+                print(f"Groq API Error: {groq_e}")
+
+        # Absolute Last Resort Hardcoded Fallback
+        reply = "I am currently analyzing your symptoms. Please rest and press the Emergency SOS button if you experience severe pain."
         return ChatResponse(reply=reply)
 
 # Admin / Doctors API

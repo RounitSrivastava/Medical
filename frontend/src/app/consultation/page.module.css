@@ -292,8 +292,10 @@
 
 .chatLog {
   flex-grow: 1;
+  min-height: 0;
   overflow-y: auto;
   padding-right: 20px;
+  padding-bottom: 2rem;
   display: flex;
   flex-direction: column;
   gap: 1.8rem;
@@ -355,10 +357,12 @@
 .inputArea {
   display: flex;
   gap: 1rem;
-  margin-top: 2rem;
-  padding-top: 2rem;
+  margin-top: 1rem;
+  padding-top: 1.5rem;
   border-top: 1px solid rgba(0,0,0,0.06);
   align-items: center;
+  flex-shrink: 0;
+  background: transparent;
 }
 
 .input {

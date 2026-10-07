@@ -22,12 +22,18 @@ export default function Consultation() {
   const [inputValue, setInputValue] = useState("");
   const [avatarStatus, setAvatarStatus] = useState<"idle" | "listening" | "thinking" | "speaking">("idle");
   const [isListening, setIsListening] = useState(false);
+  const [isPrescriptionModalOpen, setIsPrescriptionModalOpen] = useState(false);
+  const [prescriptionText, setPrescriptionText] = useState("");
+  const [isOcrProcessing, setIsOcrProcessing] = useState(false);
   const [isBookingModalOpen, setIsBookingModalOpen] = useState(false);
   const chatEndRef = useRef<HTMLDivElement>(null);
   const router = useRouter();
 
-  // Web Speech API
+  // Web Speech & Wake Word API
   const [recognition, setRecognition] = useState<any>(null);
+  const isWakeWordModeRef = useRef(false);
+  const isAwakeRef = useRef(false);
+  const [isWakeWordUI, setIsWakeWordUI] = useState(false);
 
   useEffect(() => {
     chatEndRef.current?.scrollIntoView({ behavior: "smooth" });
@@ -38,40 +44,75 @@ export default function Consultation() {
       const SpeechRecognition = (window as any).SpeechRecognition || (window as any).webkitSpeechRecognition;
       if (SpeechRecognition) {
         const reco = new SpeechRecognition();
-        reco.continuous = false;
-        reco.interimResults = false;
-        reco.lang = "en-US"; // Standard fallback language
+        reco.continuous = true;
+        reco.interimResults = true;
+        reco.lang = "en-US";
 
         reco.onstart = () => {
           setIsListening(true);
-          setAvatarStatus("listening");
         };
 
         reco.onresult = (event: any) => {
-          const transcript = event.results[0][0].transcript;
-          handleSend(transcript);
+          if (!isWakeWordModeRef.current) {
+            // Manual Mode: Stop listening and send after first final sentence
+            for (let i = event.resultIndex; i < event.results.length; ++i) {
+              if (event.results[i].isFinal) {
+                handleSend(event.results[i][0].transcript);
+                reco.stop();
+              }
+            }
+            return;
+          }
+
+          // Hands-Free Mode Logic
+          for (let i = event.resultIndex; i < event.results.length; ++i) {
+            if (event.results[i].isFinal) {
+              const rawText = event.results[i][0].transcript;
+              const text = rawText.toLowerCase().trim();
+              
+              if (!isAwakeRef.current) {
+                // Listening for wake word
+                if (text.includes("hello doctor") || text.includes("hi doctor") || text.includes("hey doctor")) {
+                  isAwakeRef.current = true;
+                  setAvatarStatus("listening");
+                  
+                  // Simple audio feedback that won't trigger the mic itself easily
+                  if ("speechSynthesis" in window) {
+                    window.speechSynthesis.cancel();
+                    const utterance = new SpeechSynthesisUtterance("Yes?");
+                    utterance.rate = 1.2;
+                    window.speechSynthesis.speak(utterance);
+                  }
+                }
+              } else {
+                // Aisha is awake, listening for actual command
+                // Ignore tiny noises or if she heard herself say "yes"
+                if (text.includes("yes") && text.length < 5) return;
+                
+                if (text.length > 2) {
+                  handleSend(rawText);
+                  isAwakeRef.current = false;
+                  setAvatarStatus("idle");
+                }
+              }
+            }
+          }
         };
 
         reco.onerror = (event: any) => {
-          if (event.error === 'no-speech') {
-            // Silently ignore no-speech errors (happens when user clicks mic but stays quiet)
-            console.log("No speech detected. Microphone turned off.");
-          } else {
-            console.error("Speech recognition error", event.error);
-            if (event.error === 'not-allowed') {
-              alert("Microphone access is blocked! Please check the URL bar of your browser and click the tiny microphone icon to 'Allow' access.");
-            } else {
-              alert("Microphone error: " + event.error);
-            }
+          if (event.error !== 'no-speech' && !isWakeWordModeRef.current) {
+            console.error("Speech error:", event.error);
           }
-          setIsListening(false);
-          setAvatarStatus("idle");
         };
 
         reco.onend = () => {
-          setIsListening(false);
-          if (avatarStatus === "listening") {
-            setAvatarStatus("idle");
+          if (isWakeWordModeRef.current) {
+            setTimeout(() => {
+              try { reco.start(); } catch(e) {}
+            }, 300); // 300ms is the most stable restart window for Chrome
+          } else {
+            setIsListening(false);
+            setAvatarStatus(prev => prev === "listening" ? "idle" : prev);
           }
         };
 
@@ -80,26 +121,52 @@ export default function Consultation() {
     }
   }, []);
 
-  const toggleListen = () => {
-    if (!recognition) {
-      alert("Your browser does not support voice recognition. Please use Google Chrome or Microsoft Edge!");
-      return;
-    }
+  const toggleWakeWordMode = () => {
+    if (!recognition) return alert("Browser not supported");
+    
+    const newState = !isWakeWordUI;
+    setIsWakeWordUI(newState);
+    isWakeWordModeRef.current = newState;
+    isAwakeRef.current = false;
 
-    if (isListening) {
-      recognition.stop();
-      setIsListening(false);
-      setAvatarStatus("idle");
+    if (newState) {
+      try { recognition.start(); } catch(e) {}
     } else {
-      try {
-        recognition.start();
-      } catch (e) {
-        console.error("Failed to start recognition:", e);
-      }
+      recognition.stop();
     }
   };
 
-  const handleSend = async (text: string = inputValue) => {
+  const toggleListen = () => {
+    if (!recognition) return alert("Browser not supported");
+    setIsWakeWordUI(false);
+    isWakeWordModeRef.current = false;
+    isAwakeRef.current = false;
+
+    if (isListening) {
+      recognition.stop();
+    } else {
+      try { recognition.start(); } catch(e) {}
+    }
+  };
+
+  const handleImageUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+    
+    setIsOcrProcessing(true);
+    try {
+      const Tesseract = (await import('tesseract.js')).default;
+      const result = await Tesseract.recognize(file, 'eng');
+      setPrescriptionText(prev => prev + (prev ? '\n' : '') + result.data.text);
+    } catch (err) {
+      console.error("OCR Error:", err);
+      alert("Failed to extract text from the image. Please type it manually.");
+    } finally {
+      setIsOcrProcessing(false);
+    }
+  };
+
+  const handleSend = async (text: string = inputValue, hiddenPrompt?: string) => {
     if (!text.trim()) return;
 
     const newMsg: Message = { id: Date.now(), sender: "user", text };
@@ -127,7 +194,7 @@ export default function Consultation() {
       const res = await fetch("http://localhost:8000/api/chat", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ message: text }),
+        body: JSON.stringify({ message: hiddenPrompt || text }),
       });
       const data = await res.json();
 
@@ -263,10 +330,26 @@ export default function Consultation() {
   };
   
   // Calculate some dummy stats for the report
-  const patientVitals = {
+  const [patientVitals, setPatientVitals] = useState({
     hr: "72 BPM",
     bp: "118/78",
     o2: "98%"
+  });
+
+  const [isSyncingPhone, setIsSyncingPhone] = useState(false);
+  const [hasSyncedPhone, setHasSyncedPhone] = useState(false);
+
+  const handleSyncPhone = () => {
+    setIsSyncingPhone(true);
+    setTimeout(() => {
+      setPatientVitals({
+        hr: "Avg 74 BPM",
+        bp: "120/80",
+        o2: "99%"
+      });
+      setIsSyncingPhone(false);
+      setHasSyncedPhone(true);
+    }, 2500); // 2.5 seconds loading for high realism
   };
 
   useEffect(() => {
@@ -337,6 +420,25 @@ export default function Consultation() {
               <span className={styles.vitalLabel}>Oxygen</span>
               <span className={styles.vitalValue}>{patientVitals.o2} <span className={styles.vitalNormal}>(Normal)</span></span>
             </div>
+            
+            <button 
+              onClick={handleSyncPhone}
+              disabled={isSyncingPhone || hasSyncedPhone}
+              style={{
+                width: '100%', padding: '0.8rem', marginTop: '1rem', marginBottom: '0.5rem',
+                borderRadius: '8px', border: 'none', fontWeight: 'bold', cursor: 'pointer',
+                background: hasSyncedPhone ? '#10b981' : (isSyncingPhone ? '#94a3b8' : '#3b82f6'),
+                color: 'white', display: 'flex', justifyContent: 'center', alignItems: 'center', gap: '8px',
+                transition: 'all 0.3s ease', fontSize: '0.9rem', boxShadow: '0 4px 6px -1px rgba(0, 0, 0, 0.1)'
+              }}
+            >
+              <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                <rect x="5" y="2" width="14" height="20" rx="2" ry="2"></rect>
+                <line x1="12" y1="18" x2="12.01" y2="18"></line>
+              </svg>
+              {isSyncingPhone ? 'Connecting to Google Fit...' : (hasSyncedPhone ? 'Synced with Google Fit' : 'Sync with Phone Data')}
+            </button>
+
             <button className={styles.findDoctorBtn} onClick={() => setIsBookingModalOpen(true)}>
               <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
                 <path d="M21 10c0 7-9 13-9 13s-9-6-9-13a9 9 0 0 1 18 0z"></path>
@@ -390,11 +492,31 @@ export default function Consultation() {
 
             <div className={styles.inputArea}>
               <button 
-                className={`${styles.voiceBtn} ${isListening ? styles.listening : ""}`} 
+                className={`${styles.voiceBtn} ${isListening && !isWakeWordUI ? styles.listening : ""}`} 
                 onClick={toggleListen}
-                title="Use Voice"
+                title="Manual Voice (Click to speak)"
               >
                 🎤
+              </button>
+              <button 
+                className={styles.voiceBtn} 
+                onClick={toggleWakeWordMode}
+                title="Hands-Free Mode (Say 'Hello Aisha')"
+                style={{ 
+                  background: isWakeWordUI ? '#10b981' : 'white', 
+                  color: isWakeWordUI ? 'white' : 'var(--primary)', 
+                  borderColor: isWakeWordUI ? '#10b981' : '#e2e8f0',
+                  animation: isWakeWordUI ? 'pulse 2s infinite' : 'none'
+                }}
+              >
+                👋
+              </button>
+              <button 
+                className={styles.voiceBtn} 
+                onClick={() => setIsPrescriptionModalOpen(true)}
+                title="Analyze Prescription"
+              >
+                💊
               </button>
               <input
                 type="text"
@@ -411,6 +533,52 @@ export default function Consultation() {
           </div>
         </div>
       </div>
+
+      {isPrescriptionModalOpen && (
+        <div className={styles.modalOverlay} onClick={() => setIsPrescriptionModalOpen(false)}>
+          <div className={styles.modalContent} onClick={e => e.stopPropagation()} style={{padding: '2rem', maxWidth: '600px'}}>
+            <div className={styles.chatHeader} style={{background:'none', padding:0, marginBottom:'1rem'}}>
+              <h2>💊 Prescription Analysis</h2>
+            </div>
+            <p style={{color: '#64748b', marginBottom: '1.5rem', lineHeight: '1.5'}}>
+              Paste your medical prescription below, or <strong>upload a photo</strong>. Dr. Aisha will automatically read the image, extract the text, and evaluate if the medications are safe and appropriate for a cardiac patient.
+            </p>
+
+            <div style={{marginBottom: '1rem', display: 'flex', alignItems: 'center', gap: '1rem'}}>
+              <label style={{background: '#f8fafc', border: '1px dashed #94a3b8', padding: '0.6rem 1.2rem', borderRadius: '8px', cursor: 'pointer', display: 'inline-flex', alignItems: 'center', gap: '8px', fontWeight: 'bold', color: '#334155', transition: 'all 0.2s'}}>
+                📷 Upload Photo of Prescription
+                <input type="file" accept="image/*" onChange={handleImageUpload} style={{display: 'none'}} />
+              </label>
+              {isOcrProcessing && <span style={{color: '#3b82f6', fontSize: '0.9rem', fontWeight: 'bold', animation: 'pulse 1.5s infinite'}}>🔄 Scanning with OCR...</span>}
+            </div>
+
+            <textarea 
+              value={prescriptionText}
+              onChange={(e) => setPrescriptionText(e.target.value)}
+              placeholder="e.g., Lisinopril 10mg daily, Metoprolol 25mg twice a day..."
+              style={{width: '100%', height: '150px', padding: '1rem', borderRadius: '8px', border: '1px solid #cbd5e1', marginBottom: '1.5rem', fontFamily: 'inherit', resize: 'vertical'}}
+            />
+            <div style={{display: 'flex', justifyContent: 'flex-end', gap: '1rem'}}>
+              <button onClick={() => setIsPrescriptionModalOpen(false)} style={{padding: '0.8rem 1.5rem', background: '#f1f5f9', color: '#475569', border: 'none', borderRadius: '8px', cursor: 'pointer', fontWeight: 'bold'}}>Cancel</button>
+              <button 
+                onClick={() => {
+                  if(!prescriptionText.trim()) return;
+                  setIsPrescriptionModalOpen(false);
+                  
+                  const visibleText = `Please analyze my prescription: ${prescriptionText}`;
+                  const hiddenPrompt = `You are a medical AI. Below is raw OCR text from a prescription image. Ignore any typos, gibberish, or scanning errors. DO NOT mention OCR errors, illegibility, or give any disclaimers. Just extract the actual medication names you can recognize, give a 1-sentence summary of what each is for, and state if it is safe for a cardiac patient. Keep it extremely concise and direct. Raw text: ${prescriptionText}`;
+                  
+                  handleSend(visibleText, hiddenPrompt);
+                  setPrescriptionText("");
+                }}
+                style={{padding: '0.8rem 1.5rem', background: 'var(--primary)', color: 'white', border: 'none', borderRadius: '8px', cursor: 'pointer', fontWeight: 'bold'}}
+              >
+                Analyze Prescription
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
 
       {isBookingModalOpen && (
         <BookingModal onClose={() => setIsBookingModalOpen(false)} />

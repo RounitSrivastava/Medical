@@ -8,9 +8,10 @@ export default function EKGMonitor() {
   const [bpm, setBpm] = useState(72);
   const [isConnected, setIsConnected] = useState(false);
   const [isPairing, setIsPairing] = useState(false);
+  const [isRealDevice, setIsRealDevice] = useState(false);
 
   useEffect(() => {
-    if (!isConnected) return;
+    if (!isConnected || isRealDevice) return;
     
     // Fluctuate BPM slightly
     const interval = setInterval(() => {
@@ -98,32 +99,40 @@ export default function EKGMonitor() {
     setIsPairing(true);
     
     try {
-      // Try to use the real Web Bluetooth API if available in the browser
       if (navigator.bluetooth) {
-        // Request a bluetooth device that broadcasts heart rate
         const device = await navigator.bluetooth.requestDevice({
-          filters: [{ services: ['heart_rate'] }],
-          optionalServices: ['battery_service']
+          filters: [{ services: ['heart_rate'] }]
         });
         
         console.log("Connected to Bluetooth Device:", device.name);
-        // In a full production app, we would connect to the GATT server here
-        // and listen for characteristic value changes to get real BPM.
         
-        setIsPairing(false);
-        setIsConnected(true);
-      } else {
-        // Fallback for browsers that don't support Web Bluetooth (e.g., Firefox, Safari)
-        console.warn("Web Bluetooth API not supported. Falling back to simulation.");
-        setTimeout(() => {
+        // Connect to GATT Server to stream live real data!
+        const server = await device.gatt?.connect();
+        if (server) {
+          const service = await server.getPrimaryService('heart_rate');
+          const characteristic = await service.getCharacteristic('heart_rate_measurement');
+          
+          await characteristic.startNotifications();
+          
+          characteristic.addEventListener('characteristicvaluechanged', (event: any) => {
+            const value = event.target.value;
+            // Parse standard BLE Heart Rate Measurement format
+            const flags = value.getUint8(0);
+            const rate16Bits = flags & 0x1;
+            const currentBpm = rate16Bits ? value.getUint16(1, true) : value.getUint8(1);
+            setBpm(currentBpm);
+          });
+          
+          setIsRealDevice(true);
           setIsPairing(false);
           setIsConnected(true);
-        }, 2000);
+          return;
+        }
       }
+      throw new Error("Web Bluetooth not supported or failed");
     } catch (error) {
-      // If the user cancels the bluetooth prompt or no device is found,
-      // fallback to our beautiful simulation so the demo still works!
-      console.log("Bluetooth connection cancelled or failed. Using simulated device data.", error);
+      console.log("Bluetooth connection failed or cancelled. Using simulated device data.", error);
+      setIsRealDevice(false);
       setTimeout(() => {
         setIsPairing(false);
         setIsConnected(true);

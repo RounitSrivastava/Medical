@@ -1,0 +1,185 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <title>CardioCare AI Portal - System Architecture</title>
+  <style>
+    @page { size: A4 landscape; margin: 15mm; }
+    body {
+      font-family: 'Segoe UI', -apple-system, BlinkMacSystemFont, Roboto, sans-serif;
+      color: #1e293b;
+      background: #f8fafc;
+      margin: 0;
+      padding: 20px;
+    }
+    .header {
+      text-align: center;
+      padding-bottom: 20px;
+      border-bottom: 2px solid #0284c7;
+      margin-bottom: 25px;
+    }
+    .header h1 {
+      margin: 0;
+      color: #0369a1;
+      font-size: 26px;
+    }
+    .header p {
+      margin: 5px 0 0 0;
+      color: #64748b;
+      font-size: 14px;
+    }
+    .grid {
+      display: grid;
+      grid-template-columns: repeat(3, 1fr);
+      gap: 20px;
+    }
+    .card {
+      background: #ffffff;
+      border-radius: 12px;
+      padding: 16px;
+      box-shadow: 0 4px 6px -1px rgba(0,0,0,0.05), 0 2px 4px -2px rgba(0,0,0,0.05);
+      border: 1px solid #e2e8f0;
+    }
+    .card-title {
+      font-size: 16px;
+      font-weight: 700;
+      color: #0f172a;
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      border-bottom: 1px solid #f1f5f9;
+      padding-bottom: 8px;
+      margin-bottom: 12px;
+    }
+    .badge {
+      display: inline-block;
+      padding: 2px 8px;
+      border-radius: 6px;
+      font-size: 11px;
+      font-weight: 600;
+      background: #e0f2fe;
+      color: #0369a1;
+    }
+    ul {
+      margin: 0;
+      padding-left: 18px;
+      font-size: 13px;
+      color: #334155;
+      line-height: 1.6;
+    }
+    .flow-diagram {
+      grid-column: span 3;
+      background: #0f172a;
+      color: #f8fafc;
+      border-radius: 12px;
+      padding: 20px;
+      margin-top: 10px;
+      font-family: 'Consolas', monospace;
+      font-size: 12px;
+      line-height: 1.5;
+      white-space: pre;
+      overflow-x: auto;
+    }
+    .footer {
+      margin-top: 25px;
+      text-align: center;
+      font-size: 12px;
+      color: #94a3b8;
+      border-top: 1px solid #e2e8f0;
+      padding-top: 12px;
+    }
+  </style>
+</head>
+<body>
+
+  <div class="header">
+    <h1>🩺 CardioCare AI Portal: End-to-End System Architecture</h1>
+    <p>Autonomous Rural Telemedicine & Cardiac Triage Kiosk | KIIT Deemed to be University (School of Computer Engineering)</p>
+  </div>
+
+  <div class="grid">
+    <div class="card">
+      <div class="card-title">
+        <span>🖥️ Kiosk Edge Client</span>
+        <span class="badge">Next.js 16 + React 19</span>
+      </div>
+      <ul>
+        <li><strong>Wake Word Voice AI:</strong> Continuous listening via Web Speech API ("Hello Doctor").</li>
+        <li><strong>Live Telemetry:</strong> Web Bluetooth API connects to consumer smartwatches (GATT 0x180D).</li>
+        <li><strong>Real-time EKG:</strong> HTML5 Canvas 60fps dynamic cardiac waveform renderer.</li>
+        <li><strong>Prescription OCR:</strong> Client-side Tesseract.js WebAssembly text extraction.</li>
+      </ul>
+    </div>
+
+    <div class="card">
+      <div class="card-title">
+        <span>⚙️ Gateway Backend</span>
+        <span class="badge">FastAPI + Python 3.10</span>
+      </div>
+      <ul>
+        <li><strong>Async REST Router:</strong> High-throughput ASGI server via Uvicorn.</li>
+        <li><strong>Intelligent Prompt Engine:</strong> Clinical cardiology context injection and markdown hygiene.</li>
+        <li><strong>Resilient Dual-Inference:</strong> Primary Colab GPU with automated Groq Cloud LPU fallback.</li>
+        <li><strong>Edge Persistence:</strong> Flat-file JSON database (`users.json`, `doctors.json`) for rural kiosks.</li>
+      </ul>
+    </div>
+
+    <div class="card">
+      <div class="card-title">
+        <span>🧠 AI & Model Core</span>
+        <span class="badge">Qwen 27B + Groq LPU</span>
+      </div>
+      <ul>
+        <li><strong>Primary Model:</strong> 27B-parameter Qwen clinical LLM hosted on remote Colab GPU via ngrok.</li>
+        <li><strong>High-Speed Fallback:</strong> Groq Cloud LPU running LLaMA-3 / Qwen (sub-500ms response).</li>
+        <li><strong>Vision/OCR:</strong> Tesseract.js client OCR with rule-based medication artifact cleanser.</li>
+        <li><strong>Emergency Escalation:</strong> Deterministic risk classifier routing severe vitals to human cardiologists.</li>
+      </ul>
+    </div>
+
+    <div class="flow-diagram">
+========================================================================================================================
+                                      CARDIOCARE AI PORTAL DATA FLOW PIPELINE
+========================================================================================================================
+
+[ PATIENT AT RURAL KIOSK ]
+         │
+         ├──► 1. Hands-Free Voice ("Hello Doctor") ──► Web Speech API (Continuous ASR) ──────┐
+         │                                                                                    │
+         ├──► 2. Smartwatch / BLE Sensor ─────────────► Web Bluetooth GATT (Heart Rate 0x180D)─┤
+         │                                            └──► HTML5 Canvas (60fps EKG Waveform)  │
+         │                                                                                    ▼
+         ├──► 3. Uploads Paper Prescription ─────────► Tesseract.js (Client-Side WASM OCR) ──► [ Next.js Frontend ]
+                                                                                                      │
+                                                                                                 (HTTPS / JSON)
+                                                                                                      ▼
+                                                                                              [ FastAPI Gateway ]
+                                                                                                      │
+                         ┌────────────────────────────────────────────────────────────────────────────┴─────────────┐
+                         │ Dual-Tier AI Inference Router                                                            │
+                         ▼                                                                                          ▼
+         [ Tier 1: Colab Dedicated GPU ]                                                            [ Tier 2: Groq Cloud LPU ]
+         Qwen 27B Parameter Clinical LLM                                                            LLaMA-3 / Qwen (Sub-500ms)
+         (Primary High-Accuracy Triage)                                                             (Zero-Downtime Fallback)
+                         │                                                                                          │
+                         └──────────────────────────────────┬───────────────────────────────────────────────────────┘
+                                                            │
+                                                            ▼
+                                                [ Structured Clinical Reply ]
+                                                            │
+                     ┌──────────────────────────────────────┴──────────────────────────────────────┐
+                     ▼                                                                            ▼
+          [ Normal / Moderate Risk ]                                                    [ High-Risk Anomaly / Emergency ]
+          • TTS Spoken Guidance                                                         • Emergency Siren & Alert
+          • Drug Interaction Summary                                                    • Geocoded Doctor Match (doctors.json)
+          • Lifestyle & Diet Advice                                                     • Auto-escalated to Admin / MD Dashboard
+========================================================================================================================
+    </div>
+  </div>
+
+  <div class="footer">
+    CardioCare AI Portal &bull; Open-Source Telemedicine Kiosk &bull; Licensed under MIT &bull; KIIT Bhubaneswar
+  </div>
+
+</body>
+</html>

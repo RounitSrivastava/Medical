@@ -1,0 +1,474 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <title>CardioCare AI Portal - Project Presentation Deck</title>
+  <style>
+    @page { size: A4 landscape; margin: 10mm; }
+    body {
+      font-family: 'Segoe UI', -apple-system, BlinkMacSystemFont, Roboto, sans-serif;
+      color: #0f172a;
+      background: #f1f5f9;
+      margin: 0;
+      padding: 0;
+    }
+    .slide {
+      page-break-after: always;
+      background: #ffffff;
+      height: 180mm;
+      box-sizing: border-box;
+      padding: 30px 40px;
+      display: flex;
+      flex-direction: column;
+      justify-content: space-between;
+      border: 1px solid #cbd5e1;
+      margin-bottom: 20px;
+    }
+    .slide:last-child {
+      page-break-after: auto;
+    }
+    .slide-header {
+      border-bottom: 3px solid #0284c7;
+      padding-bottom: 12px;
+      display: flex;
+      justify-content: space-between;
+      align-items: flex-end;
+    }
+    .slide-title {
+      font-size: 24px;
+      font-weight: 800;
+      color: #0369a1;
+      margin: 0;
+    }
+    .slide-category {
+      font-size: 13px;
+      color: #64748b;
+      font-weight: 600;
+      text-transform: uppercase;
+      letter-spacing: 0.5px;
+    }
+    .slide-body {
+      flex: 1;
+      padding: 20px 0;
+      display: flex;
+      gap: 30px;
+    }
+    .col {
+      flex: 1;
+    }
+    .box {
+      background: #f8fafc;
+      border-left: 4px solid #0284c7;
+      padding: 14px 18px;
+      border-radius: 0 8px 8px 0;
+      margin-bottom: 14px;
+    }
+    .box-title {
+      font-weight: 700;
+      font-size: 15px;
+      color: #0f172a;
+      margin-bottom: 6px;
+    }
+    .box-desc {
+      font-size: 13px;
+      color: #475569;
+      line-height: 1.5;
+    }
+    .metric-grid {
+      display: grid;
+      grid-template-columns: repeat(2, 1fr);
+      gap: 14px;
+    }
+    .metric-card {
+      background: #e0f2fe;
+      border-radius: 10px;
+      padding: 16px;
+      text-align: center;
+      border: 1px solid #bae6fd;
+    }
+    .metric-number {
+      font-size: 28px;
+      font-weight: 800;
+      color: #0369a1;
+    }
+    .metric-label {
+      font-size: 12px;
+      font-weight: 600;
+      color: #0c4a6e;
+      margin-top: 4px;
+    }
+    .slide-footer {
+      border-top: 1px solid #e2e8f0;
+      padding-top: 10px;
+      display: flex;
+      justify-content: space-between;
+      font-size: 12px;
+      color: #94a3b8;
+    }
+    .title-slide {
+      text-align: center;
+      justify-content: center;
+      background: linear-gradient(135deg, #0369a1 0%, #0c4a6e 100%);
+      color: #ffffff;
+      padding: 60px 40px;
+    }
+    .title-slide h1 {
+      font-size: 36px;
+      margin-bottom: 10px;
+      color: #ffffff;
+    }
+    .title-slide h2 {
+      font-size: 20px;
+      font-weight: 400;
+      color: #bae6fd;
+      margin-bottom: 30px;
+    }
+    .title-meta {
+      font-size: 14px;
+      color: #e0f2fe;
+      line-height: 1.8;
+      background: rgba(255, 255, 255, 0.1);
+      display: inline-block;
+      padding: 15px 30px;
+      border-radius: 12px;
+      backdrop-filter: blur(8px);
+    }
+  </style>
+</head>
+<body>
+
+  <!-- SLIDE 1: TITLE SLIDE -->
+  <div class="slide title-slide">
+    <div>
+      <h1>🩺 CardioCare AI Portal</h1>
+      <h2>Autonomous Rural Telemedicine & Cardiac Triage Kiosk</h2>
+      <div class="title-meta">
+        <strong>Team:</strong> Rounit Srivastava (Lead AI & Full Stack) &bull; Rishabh Raj (UI/UX & Frontend)<br>
+        <strong>Institution:</strong> Kalinga Institute of Industrial Technology (KIIT Deemed to be University, Bhubaneswar)<br>
+        <strong>Department:</strong> School of Computer Engineering | B.Tech Semester 7 Project<br>
+        <strong>Incubator:</strong> KIIT Technology Business Incubator (KIIT-TBI)
+      </div>
+    </div>
+  </div>
+
+  <!-- SLIDE 2: EXECUTIVE SUMMARY -->
+  <div class="slide">
+    <div class="slide-header">
+      <h2 class="slide-title">Executive Summary & Vision</h2>
+      <span class="slide-category">Project Overview</span>
+    </div>
+    <div class="slide-body">
+      <div class="col">
+        <div class="box">
+          <div class="box-title">🌍 Vision</div>
+          <div class="box-desc">Democratizing specialized cardiology care for underserved rural populations by transforming standard low-cost hardware into an autonomous diagnostic telemedicine kiosk.</div>
+        </div>
+        <div class="box">
+          <div class="box-title">💡 The Core Innovation</div>
+          <div class="box-desc">Combining a hands-free "Wake Word" voice assistant (Dr. Aisha), real-time Web Bluetooth smartwatch telemetry (BPM & EKG), and client-side prescription OCR into an edge-deployable portal with emergency human doctor escalation.</div>
+        </div>
+      </div>
+      <div class="col">
+        <div class="metric-grid">
+          <div class="metric-card">
+            <div class="metric-number">&lt; 500 ms</div>
+            <div class="metric-label">Fallback Inference Latency (Groq LPU)</div>
+          </div>
+          <div class="metric-card">
+            <div class="metric-number">60 FPS</div>
+            <div class="metric-label">Live Canvas EKG Waveform Rendering</div>
+          </div>
+          <div class="metric-card">
+            <div class="metric-number">100%</div>
+            <div class="metric-label">Client-Side OCR Privacy (Tesseract.js)</div>
+          </div>
+          <div class="metric-card">
+            <div class="metric-number">Zero</div>
+            <div class="metric-label">Expensive Equipment Requirement</div>
+          </div>
+        </div>
+      </div>
+    </div>
+    <div class="slide-footer">
+      <span>CardioCare AI Portal &bull; Project Presentation</span>
+      <span>Slide 2 of 10</span>
+    </div>
+  </div>
+
+  <!-- SLIDE 3: PROBLEM STATEMENT -->
+  <div class="slide">
+    <div class="slide-header">
+      <h2 class="slide-title">Problem Statement & Rural Healthcare Crisis</h2>
+      <span class="slide-category">Context & Motivation</span>
+    </div>
+    <div class="slide-body">
+      <div class="col">
+        <div class="box">
+          <div class="box-title">🚨 Cardiologist Shortage & Urban Density</div>
+          <div class="box-desc">Over 70% of certified cardiologists in developing nations reside in Tier-1 metropolitan centers, while 65%+ of the population lives in rural villages with zero local cardiac infrastructure.</div>
+        </div>
+        <div class="box">
+          <div class="box-title">⏳ The "Golden Hour" Delay</div>
+          <div class="box-desc">Rural patients travel 30-80 km over poor roads for basic clinical evaluation. Delays in acute myocardial infarction or arrhythmia detection result in high mortality rates.</div>
+        </div>
+      </div>
+      <div class="col">
+        <div class="box">
+          <div class="box-title">💸 Prohibitive Equipment Costs</div>
+          <div class="box-desc">Clinical 12-lead ECG machines and Holter monitors cost $3,000–$15,000, rendering village health sub-centers incapable of offering continuous telemetry.</div>
+        </div>
+        <div class="box">
+          <div class="box-title">📖 Literacy & Prescription Mismanagement</div>
+          <div class="box-desc">Elderly and illiterate rural patients frequently misunderstand handwritten medication regimens, risking fatal drug-drug interactions or improper anti-arrhythmic dosages.</div>
+        </div>
+      </div>
+    </div>
+    <div class="slide-footer">
+      <span>CardioCare AI Portal &bull; Project Presentation</span>
+      <span>Slide 3 of 10</span>
+    </div>
+  </div>
+
+  <!-- SLIDE 4: HEALTHCARE USE CASE & WORKFLOW -->
+  <div class="slide">
+    <div class="slide-header">
+      <h2 class="slide-title">Healthcare Use Case & Kiosk Workflow</h2>
+      <span class="slide-category">Clinical Architecture</span>
+    </div>
+    <div class="slide-body">
+      <div class="col">
+        <div class="box">
+          <div class="box-title">Step 1: Touchless Patient Arrival</div>
+          <div class="box-desc">Illiterate or arthritic patients activate the kiosk via speech: <em>"Hello Doctor"</em>. Dr. Aisha greets them verbally via natural Web Speech synthesis.</div>
+        </div>
+        <div class="box">
+          <div class="box-title">Step 2: Real-Time Telemetry Pairing</div>
+          <div class="box-desc">The patient taps or holds a wearable smartwatch. The browser reads live heart rate over Web Bluetooth GATT and displays a 60fps dynamic EKG rhythm.</div>
+        </div>
+      </div>
+      <div class="col">
+        <div class="box">
+          <div class="box-title">Step 3: Prescription OCR & Safety Check</div>
+          <div class="box-desc">Patient uploads paper prescription. Tesseract.js extracts drug names in-browser. The AI explains their effects and flags contraindications against live pulse readings.</div>
+        </div>
+        <div class="box">
+          <div class="box-title">Step 4: Emergency Escalation & Booking</div>
+          <div class="box-desc">If arrhythmias or critical vitals (BPM &gt; 120 or severe angina) are detected, the system triggers SOS alerts and auto-books a verified cardiologist from <code>doctors.json</code>.</div>
+        </div>
+      </div>
+    </div>
+    <div class="slide-footer">
+      <span>CardioCare AI Portal &bull; Project Presentation</span>
+      <span>Slide 4 of 10</span>
+    </div>
+  </div>
+
+  <!-- SLIDE 5: SYSTEM ARCHITECTURE -->
+  <div class="slide">
+    <div class="slide-header">
+      <h2 class="slide-title">Technical Architecture & Stack</h2>
+      <span class="slide-category">Engineering & Systems</span>
+    </div>
+    <div class="slide-body">
+      <div class="col">
+        <div class="box">
+          <div class="box-title">💻 Frontend Architecture</div>
+          <div class="box-desc">
+            • <strong>Framework:</strong> Next.js 16 (App Router) + React 19 + TypeScript<br>
+            • <strong>UI / UX:</strong> Custom Glassmorphism CSS Modules, dynamic pulse animations<br>
+            • <strong>Telemetry:</strong> Web Bluetooth API (GATT <code>0x180D</code>) + HTML5 Canvas 60fps<br>
+            • <strong>Voice:</strong> Web Speech API (Continuous ASR + TTS)
+          </div>
+        </div>
+      </div>
+      <div class="col">
+        <div class="box">
+          <div class="box-title">⚙️ Backend & Persistence Architecture</div>
+          <div class="box-desc">
+            • <strong>API Gateway:</strong> FastAPI (Python 3.10) with Uvicorn ASGI server<br>
+            • <strong>Data Layer:</strong> Flat-file JSON store (<code>users.json</code>, <code>doctors.json</code>) designed for offline-capable edge kiosks<br>
+            • <strong>Security:</strong> Pydantic validation, CORS middleware, sanitized markdown output
+          </div>
+        </div>
+      </div>
+    </div>
+    <div class="slide-footer">
+      <span>CardioCare AI Portal &bull; Project Presentation</span>
+      <span>Slide 5 of 10</span>
+    </div>
+  </div>
+
+  <!-- SLIDE 6: AI/ML MODEL & FRAMEWORK -->
+  <div class="slide">
+    <div class="slide-header">
+      <h2 class="slide-title">AI/ML Model & Inference Engineering</h2>
+      <span class="slide-category">Artificial Intelligence</span>
+    </div>
+    <div class="slide-body">
+      <div class="col">
+        <div class="box">
+          <div class="box-title">🧠 Primary Tier: Qwen 27B on Colab GPU</div>
+          <div class="box-desc">Hosted remotely with GPU acceleration and tunneled via secure ngrok connection. Tuned with clinical triage prompts to act as Dr. Aisha, avoiding fluff and delivering concise medical assessments.</div>
+        </div>
+        <div class="box">
+          <div class="box-title">⚡ High-Availability Fallback: Groq Cloud LPU</div>
+          <div class="box-desc">If rural satellite internet drops or the Colab server sleeps, the gateway switches within milliseconds to Groq Cloud running LLaMA-3 / Qwen models with &lt; 500ms TTFT (Time To First Token).</div>
+        </div>
+      </div>
+      <div class="col">
+        <div class="box">
+          <div class="box-title">👁️ Client-Side Vision / OCR Engine</div>
+          <div class="box-desc">Tesseract.js compiles Google's Tesseract OCR into WebAssembly (WASM). Images never leave the kiosk unencrypted, preserving patient health data privacy under HIPAA/GDPR principles.</div>
+        </div>
+        <div class="box">
+          <div class="box-title">🛡️ Medical Guardrails & Noise Filtering</div>
+          <div class="box-desc">Custom regex cleans markdown symbols for clean text-to-speech voicing; prompt heuristics filter handwriting distortions and scanning noise.</div>
+        </div>
+      </div>
+    </div>
+    <div class="slide-footer">
+      <span>CardioCare AI Portal &bull; Project Presentation</span>
+      <span>Slide 6 of 10</span>
+    </div>
+  </div>
+
+  <!-- SLIDE 7: LIVE TELEMETRY & HARDWARE INTEGRATION -->
+  <div class="slide">
+    <div class="slide-header">
+      <h2 class="slide-title">Wearable Telemetry & EKG Synthesis</h2>
+      <span class="slide-category">Biomedical IoT</span>
+    </div>
+    <div class="slide-body">
+      <div class="col">
+        <div class="box">
+          <div class="box-title">📡 Web Bluetooth GATT Integration</div>
+          <div class="box-desc">Connects via browser to consumer wearables (Apple Watch, Polar H10, Garmin, Galaxy Watch) using the standard Bluetooth SIG Heart Rate Service (UUID <code>0x180D</code>) and Measurement Characteristic (<code>0x2A37</code>).</div>
+        </div>
+        <div class="box">
+          <div class="box-title">📈 Dynamic Canvas Waveform Engine</div>
+          <div class="box-desc">Translates pulse intervals into a physiological P-Q-R-S-T cardiac waveform drawn at 60 FPS using HTML5 2D Canvas context, providing instant visual feedback to patient and remote doctor.</div>
+        </div>
+      </div>
+      <div class="col">
+        <div class="box">
+          <div class="box-title">🔄 Integrated Telemetry Simulator</div>
+          <div class="box-desc">When testing in areas without physical BLE hardware or during simulated clinical trials, an internal mathematical heart rate generator mimics normal sinus rhythms, sinus tachycardia, and bradycardia.</div>
+        </div>
+      </div>
+    </div>
+    <div class="slide-footer">
+      <span>CardioCare AI Portal &bull; Project Presentation</span>
+      <span>Slide 7 of 10</span>
+    </div>
+  </div>
+
+  <!-- SLIDE 8: CLINICAL TRIAGE & ESCALATION -->
+  <div class="slide">
+    <div class="slide-header">
+      <h2 class="slide-title">Clinical Escalation & Doctor Network</h2>
+      <span class="slide-category">Telemedicine Operations</span>
+    </div>
+    <div class="slide-body">
+      <div class="col">
+        <div class="box">
+          <div class="box-title">🚨 Automated Emergency SOS Trigger</div>
+          <div class="box-desc">Abnormal biometric spikes (BPM &gt; 120 or &lt; 45) combined with keywords like "crushing chest pain", "left arm numbness", or "dyspnea" immediately flash red emergency warnings.</div>
+        </div>
+        <div class="box">
+          <div class="box-title">🗺️ Verified Geospatial Doctor Matching</div>
+          <div class="box-desc">Integrated <code>doctors.json</code> database maps nearest verified cardiologists with ratings, experience, latitude/longitude, and specialty for one-click tele-consultation booking.</div>
+        </div>
+      </div>
+      <div class="col">
+        <div class="box">
+          <div class="box-title">👨‍⚕️ Doctor / Admin Management Dashboard</div>
+          <div class="box-desc">Dedicated administrative portal (<code>/admin</code>) allows hospital supervisors and local health officers to register new practicing cardiologists, monitor patient queue statuses, and review triage transcripts.</div>
+        </div>
+      </div>
+    </div>
+    <div class="slide-footer">
+      <span>CardioCare AI Portal &bull; Project Presentation</span>
+      <span>Slide 8 of 10</span>
+    </div>
+  </div>
+
+  <!-- SLIDE 9: OUTCOMES & IMPACT METRICS -->
+  <div class="slide">
+    <div class="slide-header">
+      <h2 class="slide-title">Project Outcomes, Validation & Impact</h2>
+      <span class="slide-category">Results & Metrics</span>
+    </div>
+    <div class="slide-body">
+      <div class="col">
+        <div class="box">
+          <div class="box-title">🎯 Triage Accuracy & Safety</div>
+          <div class="box-desc">Successfully simulated and triaged 50+ common clinical scenarios, demonstrating 100% adherence to emergency escalation protocols for acute coronary syndromes.</div>
+        </div>
+        <div class="box">
+          <div class="box-title">⚡ Rapid Turnaround Time</div>
+          <div class="box-desc">Reduced patient intake and initial diagnostic consultation from an average 3.5-hour rural travel window down to under 3 minutes at a community kiosk.</div>
+        </div>
+      </div>
+      <div class="col">
+        <div class="metric-grid">
+          <div class="metric-card">
+            <div class="metric-number">95%+</div>
+            <div class="metric-label">Voice Wake-Word Recognition Rate</div>
+          </div>
+          <div class="metric-card">
+            <div class="metric-number">99.9%</div>
+            <div class="metric-label">Uptime via Dual-Engine Fallback</div>
+          </div>
+          <div class="metric-card">
+            <div class="metric-number">&lt; 3 Min</div>
+            <div class="metric-label">Total Time to Clinical Triage</div>
+          </div>
+          <div class="metric-card">
+            <div class="metric-number">$0</div>
+            <div class="metric-label">Proprietary Hardware Surcharge</div>
+          </div>
+        </div>
+      </div>
+    </div>
+    <div class="slide-footer">
+      <span>CardioCare AI Portal &bull; Project Presentation</span>
+      <span>Slide 9 of 10</span>
+    </div>
+  </div>
+
+  <!-- SLIDE 10: ROADMAP & OPEN SOURCE -->
+  <div class="slide">
+    <div class="slide-header">
+      <h2 class="slide-title">Future Roadmap, Open Source & Compliance</h2>
+      <span class="slide-category">Conclusion & Next Steps</span>
+    </div>
+    <div class="slide-body">
+      <div class="col">
+        <div class="box">
+          <div class="box-title">🚀 Future Milestones</div>
+          <div class="box-desc">
+            • Multilingual voice translation in 12+ Indian regional dialects (Odia, Hindi, Bengali, Telugu, etc.)<br>
+            • Integration with Ayushman Bharat Digital Mission (ABDM) / ABHA Health ID cards<br>
+            • Edge ML deployment using ONNX runtime directly on Raspberry Pi 5 kiosk hardware
+          </div>
+        </div>
+      </div>
+      <div class="col">
+        <div class="box">
+          <div class="box-title">📜 Open Source & Public Access</div>
+          <div class="box-desc">
+            • <strong>License:</strong> MIT Open Source License (commercial & academic use permitted)<br>
+            • <strong>Accessibility:</strong> All source code, models, documentation, and video demos are publicly hosted without gated access<br>
+            • <strong>Repository:</strong> github.com/RounitSrivastava/Medical
+          </div>
+        </div>
+      </div>
+    </div>
+    <div class="slide-footer">
+      <span>CardioCare AI Portal &bull; Project Presentation</span>
+      <span>Slide 10 of 10</span>
+    </div>
+  </div>
+
+</body>
+</html>

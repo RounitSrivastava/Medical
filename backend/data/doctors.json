@@ -48,15 +48,5 @@
     "lat": 40.705,
     "lng": -74.015,
     "area": "East End"
-  },
-  {
-    "name": "Rishabh",
-    "specialty": "Cardiothoracic Surgeon",
-    "experience": "2",
-    "rating": "3.4",
-    "lat": 23.1232,
-    "lng": -61.323,
-    "area": "Bhubaneswar",
-    "id": "6"
   }
 ]

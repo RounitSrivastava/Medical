@@ -31,8 +31,7 @@
 
 | Name | Role | Email | GitHub Profile |
 | :--- | :--- | :--- | :--- |
-| **Rounit Srivastava** | Team Lead &bull; AI Systems & Full-Stack Engineer | `rounit.kumar2702@gmail.com` | [@RounitSrivastava](https://github.com/RounitSrivastava) |
-| **Rishabh Raj** | Co-Lead &bull; Frontend Architect & UI/UX Specialist | `rishabhraj82991@gmail.com` | [@RishabhRaj](https://github.com/RishabhRaj) |
+| **Rounit Srivastava** | Lead AI Systems & Full-Stack Engineer | `rounit.kumar2702@gmail.com` | [@RounitSrivastava](https://github.com/RounitSrivastava) |
 
 * **Academic Program:** Bachelor of Technology (B.Tech) in Computer Science & Engineering
 * **Academic Term:** 7th Semester Major Capstone Project (2026)
@@ -274,7 +273,7 @@ This project is released under the **MIT Open Source License**.
 ```text
 MIT License
 
-Copyright (c) 2026 Rounit Srivastava, Rishabh Raj, and CardioCare Contributors
+Copyright (c) 2026 Rounit Srivastava and CardioCare Contributors
 
 Permission is hereby granted, free of charge, to any person obtaining a copy
 of this software and associated documentation files (the "Software"), to deal
@@ -470,6 +469,5 @@ npm run dev
 ---
 
 ## 📬 Contact & Inquiries
-* **Lead AI Engineer:** Rounit Srivastava (`rounit.kumar2702@gmail.com`)
-* **Lead Frontend Architect:** Rishabh Raj (`rishabhraj82991@gmail.com`)
+* **Project Lead & Developer:** Rounit Srivastava (`rounit.kumar2702@gmail.com`)
 * **Institution:** Kalinga Institute of Industrial Technology (KIIT), Bhubaneswar, Odisha, India

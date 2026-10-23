@@ -13,7 +13,6 @@
 [![Unstop](https://img.shields.io/badge/Unstop-Submission%20Ready-brightgreen?style=for-the-badge)](https://unstop.com)
 
 <p align="center">
-  <a href="#-unstop-submission-compliance-checklist">Compliance Checklist</a> •
   <a href="#-1-team-details">Team</a> •
   <a href="#-4-problem-statement">Problem Statement</a> •
   <a href="#-5-healthcare-use-case">Healthcare Use Case</a> •
@@ -25,27 +24,6 @@
 </p>
 
 </div>
-
----
-
-## 📋 Unstop Submission Compliance Checklist
-
-This repository and documentation have been structured to strictly satisfy all mandatory Unstop evaluation guidelines:
-
-| Mandatory Requirement | Evaluation Item | Compliance Status & Quick Link |
-| :--- | :--- | :--- |
-| **1. Team Details** | Complete member profiles, emails, GitHub handles | [✅ Verified Details](#-1-team-details) |
-| **2. College / Incubator Info** | Institutional department & startup incubator | [✅ KIIT University & KIIT-TBI](#-2-college--incubator-information) |
-| **3. Project Title** | Descriptive title and solution abstract | [✅ CardioCare AI Portal](#-3-project-title--executive-summary) |
-| **4. Problem Statement** | Rural healthcare gap, statistics, golden hour loss | [✅ Comprehensive Analysis](#-4-problem-statement) |
-| **5. Healthcare Use Case** | Clinical workflow, voice triage, telemetry, OCR | [✅ Detailed Clinical Flow](#-5-healthcare-use-case) |
-| **6. Technical Stack** | Frontend, Backend, IoT APIs, Edge flat-file DB | [✅ Full System Specifications](#-6-technical-stack) |
-| **7. AI/ML Framework Details** | Qwen 27B LLM, Groq LPU fallback, Tesseract OCR | [✅ Dual-Tier AI Pipeline](#-7-aiml-model--framework-details) |
-| **8. 15-20 Min Demo Video** | Unlisted YouTube video link & timestamped agenda | [✅ Unlisted Video & Script](#-8-15-20-minute-demo-video) |
-| **9. Open-Source License** | Complete MIT License file and terms | [✅ MIT License Included](#-9-open-source-license-details) |
-| **10. Architecture Diagram** | PDF and PPT format download links | [✅ docs/CardioCare_Architecture_Diagram.pdf](#-10-architecture-diagram-pdf--ppt-format) |
-| **11. Project Presentation** | PDF and PPT format covering outcomes & metrics | [✅ docs/CardioCare_Project_Presentation.pdf](#-11-project-presentation-pdf--ppt-format) |
-| **12. Public Accessibility** | Verified public access without restricted logins | [✅ Open Public Verification](#-12-public-accessibility-statement) |
 
 ---
 

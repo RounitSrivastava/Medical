@@ -97,10 +97,10 @@ export default function EKGMonitor() {
 
   const handleConnect = async () => {
     setIsPairing(true);
-    
     try {
-      if (navigator.bluetooth) {
-        const device = await navigator.bluetooth.requestDevice({
+      const nav = navigator as any;
+      if (nav.bluetooth) {
+        const device = await nav.bluetooth.requestDevice({
           filters: [{ services: ['heart_rate'] }]
         });
         

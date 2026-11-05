@@ -3,6 +3,7 @@
 import React, { useState } from 'react';
 import { useRouter } from 'next/navigation';
 import styles from './login.module.css';
+import { API_BASE_URL } from '../../config/api';
 
 export default function Login() {
   const [email, setEmail] = useState('');
@@ -18,7 +19,7 @@ export default function Login() {
     setError('');
 
     try {
-      const res = await fetch('http://localhost:8000/api/login', {
+      const res = await fetch(`${API_BASE_URL}/api/login`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ email, password })

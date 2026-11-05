@@ -2,6 +2,7 @@
 
 import React, { useState } from 'react';
 import styles from './BookingModal.module.css';
+import { API_BASE_URL } from '../config/api';
 
 interface Doctor {
   id: string;
@@ -52,7 +53,7 @@ export default function BookingModal({ onClose }: BookingModalProps) {
   const [userLocation, setUserLocation] = useState<{lat: number, lng: number} | null>(null);
 
   React.useEffect(() => {
-    fetch('http://localhost:8000/api/doctors')
+    fetch(`${API_BASE_URL}/api/doctors`)
       .then(res => res.json())
       .then(data => {
         setDoctors(data);

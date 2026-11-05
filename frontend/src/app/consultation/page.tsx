@@ -7,6 +7,7 @@ import BookingModal from "../../components/BookingModal";
 import AssessmentCard from "../../components/AssessmentCard";
 import EKGMonitor from "../../components/EKGMonitor";
 import { useRouter } from "next/navigation";
+import { API_BASE_URL } from "../../config/api";
 
 type Message = {
   id: number;
@@ -191,7 +192,7 @@ export default function Consultation() {
     }
 
     try {
-      const res = await fetch("http://localhost:8000/api/chat", {
+      const res = await fetch(`${API_BASE_URL}/api/chat`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ message: hiddenPrompt || text }),

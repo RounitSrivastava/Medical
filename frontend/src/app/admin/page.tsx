@@ -3,6 +3,7 @@
 import React, { useState, useEffect } from 'react';
 import { useRouter } from 'next/navigation';
 import styles from './admin.module.css';
+import { API_BASE_URL } from '../../config/api';
 
 interface Doctor {
   id: string;
@@ -29,7 +30,7 @@ export default function AdminPage() {
   const [area, setArea] = useState('');
 
   const fetchDoctors = () => {
-    fetch('http://localhost:8000/api/doctors')
+    fetch(`${API_BASE_URL}/api/doctors`)
       .then(res => res.json())
       .then(data => setDoctors(data))
       .catch(err => console.error("Failed to fetch doctors", err));
@@ -53,7 +54,7 @@ export default function AdminPage() {
     };
     
     try {
-      const res = await fetch('http://localhost:8000/api/doctors', {
+      const res = await fetch(`${API_BASE_URL}/api/doctors`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify(newDoc)

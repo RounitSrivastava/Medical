@@ -25,9 +25,15 @@ export default function Consultation() {
   const [isListening, setIsListening] = useState(false);
   const [isPrescriptionModalOpen, setIsPrescriptionModalOpen] = useState(false);
   const [prescriptionText, setPrescriptionText] = useState("");
+  const [prescriptionImage, setPrescriptionImage] = useState<string | null>(null);
+  const [prescriptionError, setPrescriptionError] = useState("");
   const [isOcrProcessing, setIsOcrProcessing] = useState(false);
   const [isBookingModalOpen, setIsBookingModalOpen] = useState(false);
-  const chatEndRef = useRef<HTMLDivElement>(null);
+  const chatLogRef = useRef<HTMLDivElement>(null);
+  const [isSpeaking, setIsSpeaking] = useState(false);
+  const [isAudioMuted, setIsAudioMuted] = useState(false);
+  const isAudioMutedRef = useRef(false);
+  const speechSessionRef = useRef(0);
   const router = useRouter();
 
   // Web Speech & Wake Word API
@@ -37,8 +43,24 @@ export default function Consultation() {
   const [isWakeWordUI, setIsWakeWordUI] = useState(false);
 
   useEffect(() => {
-    chatEndRef.current?.scrollIntoView({ behavior: "smooth" });
+    const el = chatLogRef.current;
+    if (!el) return;
+    requestAnimationFrame(() => {
+      el.scrollTo({
+        top: el.scrollHeight,
+        behavior: "smooth",
+      });
+    });
   }, [messages]);
+
+  useEffect(() => {
+    return () => {
+      speechSessionRef.current += 1;
+      if (typeof window !== "undefined" && "speechSynthesis" in window) {
+        window.speechSynthesis.cancel();
+      }
+    };
+  }, []);
 
   useEffect(() => {
     if (typeof window !== "undefined") {
@@ -150,20 +172,160 @@ export default function Consultation() {
     }
   };
 
+  const preprocessImageForAnalysis = (file: File): Promise<{ dataUrl: string; ocrBlob: Blob }> => {
+    return new Promise((resolve, reject) => {
+      const objectUrl = URL.createObjectURL(file);
+      const img = new window.Image();
+      img.onload = () => {
+        try {
+          const maxDim = 1280;
+          const minDim = 64;
+          let width = img.naturalWidth || img.width;
+          let height = img.naturalHeight || img.height;
+
+          if (Math.max(width, height) > maxDim) {
+            const scale = maxDim / Math.max(width, height);
+            width = Math.round(width * scale);
+            height = Math.round(height * scale);
+          }
+          if (Math.min(width, height) < minDim) {
+            const scale = minDim / Math.min(width, height);
+            width = Math.round(width * scale);
+            height = Math.round(height * scale);
+          }
+
+          const canvas = document.createElement('canvas');
+          canvas.width = width;
+          canvas.height = height;
+          const ctx = canvas.getContext('2d');
+          if (!ctx) {
+            reject(new Error("Canvas unavailable"));
+            return;
+          }
+          ctx.fillStyle = '#ffffff';
+          ctx.fillRect(0, 0, width, height);
+          ctx.drawImage(img, 0, 0, width, height);
+          const dataUrl = canvas.toDataURL('image/jpeg', 0.9);
+
+          // High-contrast grayscale pass for fallback Tesseract OCR
+          const ocrCanvas = document.createElement('canvas');
+          const ocrScale = width < 900 ? 2 : 1;
+          ocrCanvas.width = width * ocrScale;
+          ocrCanvas.height = height * ocrScale;
+          const ocrCtx = ocrCanvas.getContext('2d');
+          if (ocrCtx) {
+            ocrCtx.filter = 'grayscale(100%) contrast(160%)';
+            ocrCtx.drawImage(canvas, 0, 0, ocrCanvas.width, ocrCanvas.height);
+          }
+
+          ocrCanvas.toBlob((blob) => {
+            resolve({ dataUrl, ocrBlob: blob || file });
+          }, 'image/png');
+        } catch (err) {
+          reject(err);
+        } finally {
+          URL.revokeObjectURL(objectUrl);
+        }
+      };
+      img.onerror = () => {
+        URL.revokeObjectURL(objectUrl);
+        reject(new Error("Could not load selected image"));
+      };
+      img.src = objectUrl;
+    });
+  };
+
   const handleImageUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
+    e.target.value = "";
     if (!file) return;
-    
+
+    setPrescriptionError("");
     setIsOcrProcessing(true);
+
     try {
+      const { dataUrl, ocrBlob } = await preprocessImageForAnalysis(file);
+      setPrescriptionImage(dataUrl);
+
+      // Prefer backend AI Vision extraction (handles printed + handwritten prescriptions)
+      try {
+        const res = await fetch(`${API_BASE_URL}/api/extract-prescription`, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ image_url: dataUrl }),
+        });
+        if (res.ok) {
+          const data = await res.json();
+          if (data.text && data.text.trim()) {
+            setPrescriptionText(data.text.trim());
+            return;
+          }
+        }
+      } catch (visionErr) {
+        console.warn("Vision extraction unavailable, falling back to local OCR:", visionErr);
+      }
+
+      // Client-side Tesseract OCR fallback
       const Tesseract = (await import('tesseract.js')).default;
-      const result = await Tesseract.recognize(file, 'eng');
-      setPrescriptionText(prev => prev + (prev ? '\n' : '') + result.data.text);
+      const result = await Tesseract.recognize(ocrBlob, 'eng');
+      const cleanedOcr = (result.data.text || '').trim();
+      if (cleanedOcr) {
+        setPrescriptionText(cleanedOcr);
+      } else {
+        setPrescriptionError("Could not read text clearly. You can still click Analyze Prescription so Dr. Aisha inspects the image directly, or type the medicines below.");
+      }
     } catch (err) {
-      console.error("OCR Error:", err);
-      alert("Failed to extract text from the image. Please type it manually.");
+      console.error("Prescription Upload Error:", err);
+      setPrescriptionError("Failed to read the image. Please try another photo or type the prescription below.");
     } finally {
       setIsOcrProcessing(false);
+    }
+  };
+
+  const handleAnalyzePrescription = async () => {
+    const cleanText = prescriptionText.trim();
+    const imageToAnalyze = prescriptionImage;
+    if (!cleanText && !imageToAnalyze) return;
+
+    setIsPrescriptionModalOpen(false);
+    setPrescriptionText("");
+    setPrescriptionImage(null);
+    setPrescriptionError("");
+
+    const visibleMsg = cleanText
+      ? `Please analyze my prescription: ${cleanText}`
+      : "Please analyze my uploaded prescription photo.";
+
+    setMessages((prev) => [...prev, { id: Date.now(), sender: "user", text: visibleMsg }]);
+    setAvatarStatus("thinking");
+
+    try {
+      const res = await fetch(`${API_BASE_URL}/api/analyze-prescription`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          text: cleanText,
+          image_url: imageToAnalyze,
+        }),
+      });
+      if (!res.ok) {
+        throw new Error(`Server returned ${res.status}`);
+      }
+      const data = await res.json();
+      const aiMsg: Message = { id: Date.now() + 1, sender: "ai", text: data.reply };
+      setMessages((prev) => [...prev, aiMsg]);
+      speakResponse(data.reply);
+    } catch (err) {
+      console.error("Prescription Analysis Error:", err);
+      const aiMsg: Message = {
+        id: Date.now() + 1,
+        sender: "ai",
+        text: "Sorry, I had trouble analyzing your prescription right now. Please make sure the backend is running and try again.",
+      };
+      setMessages((prev) => [...prev, aiMsg]);
+      speakResponse(aiMsg.text);
+    } finally {
+      setAvatarStatus((prev) => (prev === "thinking" ? "idle" : prev));
     }
   };
 
@@ -174,10 +336,10 @@ export default function Consultation() {
     setMessages((prev) => [...prev, newMsg]);
     setInputValue("");
     setAvatarStatus("thinking");
-    
-    // Intercept Assessment trigger
+
+    // Intercept Assessment trigger (only for direct chat queries)
     const lowerText = text.toLowerCase();
-    if (lowerText.includes("assess") || lowerText.includes("risk") || lowerText.includes("check")) {
+    if (!hiddenPrompt && (lowerText.includes("assess") || lowerText.includes("risk") || lowerText.includes("check"))) {
       setTimeout(() => {
         const aiMsg: Message = { 
           id: Date.now() + 1, 
@@ -209,28 +371,65 @@ export default function Consultation() {
       setMessages((prev) => [...prev, aiMsg]);
       speakResponse(aiMsg.text);
     } finally {
-      setAvatarStatus("idle");
+      setAvatarStatus((prev) => (prev === "thinking" ? "idle" : prev));
     }
   };
 
-  const speakResponse = (text: string) => {
-    if ("speechSynthesis" in window) {
+  const stopAudio = () => {
+    speechSessionRef.current += 1;
+    if (typeof window !== "undefined" && "speechSynthesis" in window) {
+      window.speechSynthesis.cancel();
+    }
+    setIsSpeaking(false);
+    setAvatarStatus((prev) => (prev === "speaking" ? "idle" : prev));
+  };
+
+  const handleMessageAudioClick = (text: string) => {
+    if (isSpeaking) {
+      setIsAudioMuted(true);
+      isAudioMutedRef.current = true;
+      stopAudio();
+      return;
+    }
+
+    if (isAudioMuted) {
+      setIsAudioMuted(false);
+      isAudioMutedRef.current = false;
+      speakResponse(text, true);
+      return;
+    }
+
+    speakResponse(text, true);
+  };
+
+  const speakResponse = (text: string, force = false) => {
+    if (!force && isAudioMutedRef.current) {
+      setIsSpeaking(false);
+      setAvatarStatus((prev) => (prev === "thinking" ? "idle" : prev));
+      return;
+    }
+
+    if (typeof window !== "undefined" && "speechSynthesis" in window) {
+      const sessionId = ++speechSessionRef.current;
       // Cancel any ongoing speech
       window.speechSynthesis.cancel();
-      
+
+      setIsSpeaking(true);
       setAvatarStatus("speaking");
       const utterance = new SpeechSynthesisUtterance(text);
-      
+
       // Load voices. Browsers load them async, so we might have to wait or just use default
       let voices = window.speechSynthesis.getVoices();
-      
+
       const setVoiceAndSpeak = () => {
+        if (sessionId !== speechSessionRef.current) return;
+
         voices = window.speechSynthesis.getVoices();
         // Try to explicitly find a female voice (Indian first, then others)
-        const femaleVoice = 
+        const femaleVoice =
             voices.find(v => v.name.includes('Heera')) || // Windows Indian Female
             voices.find(v => v.name.includes('Google हिन्दी')) || // Chrome Indian Female
-            voices.find(v => v.lang.includes('en-IN') && v.name.includes('Female')) || 
+            voices.find(v => v.lang.includes('en-IN') && v.name.includes('Female')) ||
             voices.find(v => v.name.includes('Zira')) || // Windows US Female
             voices.find(v => v.name.includes('Samantha')) || // Mac US Female
             voices.find(v => v.name.includes('Google UK English Female')) || // Chrome UK Female
@@ -238,19 +437,25 @@ export default function Consultation() {
             voices.find(v => v.lang.includes('en-IN')) || // Any Indian voice (might be male like Ravi)
             voices[1] || // Often the 2nd default voice is female if 1st is male
             voices[0]; // Absolute fallback
-        
+
         if (femaleVoice) {
             utterance.voice = femaleVoice;
         }
 
         utterance.onend = () => {
+          if (sessionId !== speechSessionRef.current) return;
+          setIsSpeaking(false);
           setAvatarStatus("idle");
         };
         utterance.onerror = (e) => {
-          console.error("Speech synthesis error", e);
+          if (e.error !== "interrupted" && e.error !== "canceled") {
+            console.error("Speech synthesis error", e);
+          }
+          if (sessionId !== speechSessionRef.current) return;
+          setIsSpeaking(false);
           setAvatarStatus("idle");
         };
-        
+
         window.speechSynthesis.speak(utterance);
       };
 
@@ -274,6 +479,7 @@ export default function Consultation() {
       }
     } else {
       console.warn("Speech Synthesis not supported in this browser.");
+      setIsSpeaking(false);
       setAvatarStatus("idle");
     }
   };
@@ -458,18 +664,33 @@ export default function Consultation() {
           </div>
 
           <div className={styles.chatContainer}>
-            <div className={styles.chatLog}>
+            <div ref={chatLogRef} className={styles.chatLog}>
               {messages.map((m) => (
                 <div key={m.id} className={`${styles.messageWrapper} ${m.sender === "user" ? styles.userWrapper : styles.aiWrapper}`}>
                   <div className={`${styles.message} ${m.sender === "user" ? styles.userMessage : styles.aiMessage}`}>
                     {m.text}
                     {m.sender === "ai" && (
-                      <button 
-                        onClick={() => speakResponse(m.text)} 
-                        style={{background:'none', border:'none', marginLeft:'10px', cursor:'pointer', fontSize:'1.1rem'}}
-                        title="Listen to message"
+                      <button
+                        onClick={() => handleMessageAudioClick(m.text)}
+                        className={`${styles.msgAudioBtn} ${isAudioMuted ? styles.msgAudioBtnMuted : ""}`}
+                        title={isAudioMuted ? "Unmute & listen" : (isSpeaking ? "Mute & stop audio" : "Listen to message")}
+                        aria-label={isAudioMuted ? "Unmute audio" : (isSpeaking ? "Mute audio" : "Listen to message")}
                       >
-                        🔊
+                        {isAudioMuted ? (
+                          <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
+                            <polygon points="11 5 6 9 2 9 2 15 6 15 11 19 11 5" fill="currentColor" />
+                            <path d="M15.54 8.46a5 5 0 0 1 0 7.07" />
+                            <path d="M19.07 4.93a10 10 0 0 1 0 14.14" />
+                            <line x1="2" y1="2" x2="22" y2="22" stroke="white" strokeWidth="4.2" />
+                            <line x1="2" y1="2" x2="22" y2="22" stroke="currentColor" strokeWidth="2.2" />
+                          </svg>
+                        ) : (
+                          <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
+                            <polygon points="11 5 6 9 2 9 2 15 6 15 11 19 11 5" fill="currentColor" />
+                            <path d="M15.54 8.46a5 5 0 0 1 0 7.07" />
+                            <path d="M19.07 4.93a10 10 0 0 1 0 14.14" />
+                          </svg>
+                        )}
                       </button>
                     )}
                     {m.type === "assessment" && (
@@ -488,7 +709,7 @@ export default function Consultation() {
                   </div>
                 </div>
               ))}
-              <div ref={chatEndRef} />
+
             </div>
 
             <div className={styles.inputArea}>
@@ -525,7 +746,12 @@ export default function Consultation() {
                 placeholder="Message Dr. Aisha..."
                 value={inputValue}
                 onChange={(e) => setInputValue(e.target.value)}
-                onKeyDown={(e) => e.key === "Enter" && handleSend()}
+                onKeyDown={(e) => {
+                  if (e.key === "Enter") {
+                    e.preventDefault();
+                    handleSend();
+                  }
+                }}
               />
               <button className={styles.sendBtn} onClick={() => handleSend()}>
                 ➤
@@ -541,38 +767,75 @@ export default function Consultation() {
             <div className={styles.chatHeader} style={{background:'none', padding:0, marginBottom:'1rem'}}>
               <h2>💊 Prescription Analysis</h2>
             </div>
-            <p style={{color: '#64748b', marginBottom: '1.5rem', lineHeight: '1.5'}}>
-              Paste your medical prescription below, or <strong>upload a photo</strong>. Dr. Aisha will automatically read the image, extract the text, and evaluate if the medications are safe and appropriate for a cardiac patient.
+            <p style={{color: '#64748b', marginBottom: '1.2rem', lineHeight: '1.5'}}>
+              Paste your medical prescription below, or <strong>upload a photo</strong>. Dr. Aisha will read the image directly with AI Vision and evaluate if the medications are safe for a cardiac patient.
             </p>
 
-            <div style={{marginBottom: '1rem', display: 'flex', alignItems: 'center', gap: '1rem'}}>
+            <div style={{marginBottom: '1rem', display: 'flex', alignItems: 'center', flexWrap: 'wrap', gap: '0.85rem'}}>
               <label style={{background: '#f8fafc', border: '1px dashed #94a3b8', padding: '0.6rem 1.2rem', borderRadius: '8px', cursor: 'pointer', display: 'inline-flex', alignItems: 'center', gap: '8px', fontWeight: 'bold', color: '#334155', transition: 'all 0.2s'}}>
                 📷 Upload Photo of Prescription
                 <input type="file" accept="image/*" onChange={handleImageUpload} style={{display: 'none'}} />
               </label>
-              {isOcrProcessing && <span style={{color: '#3b82f6', fontSize: '0.9rem', fontWeight: 'bold', animation: 'pulse 1.5s infinite'}}>🔄 Scanning with OCR...</span>}
+              {(prescriptionImage || prescriptionText) && !isOcrProcessing && (
+                <button
+                  type="button"
+                  onClick={() => {
+                    setPrescriptionImage(null);
+                    setPrescriptionText("");
+                    setPrescriptionError("");
+                  }}
+                  style={{background: '#f1f5f9', color: '#475569', border: 'none', padding: '0.55rem 0.9rem', borderRadius: '8px', cursor: 'pointer', fontWeight: 600, fontSize: '0.85rem'}}
+                >
+                  Clear
+                </button>
+              )}
+              {isOcrProcessing && (
+                <span style={{color: '#3b82f6', fontSize: '0.9rem', fontWeight: 'bold', animation: 'pulse 1.5s infinite'}}>
+                  🔄 Reading prescription with AI...
+                </span>
+              )}
             </div>
 
-            <textarea 
+            {prescriptionImage && (
+              <div style={{marginBottom: '1rem', display: 'flex', alignItems: 'center', gap: '0.9rem', background: '#f8fafc', padding: '0.65rem', borderRadius: '10px', border: '1px solid #e2e8f0'}}>
+                <img
+                  src={prescriptionImage}
+                  alt="Uploaded prescription preview"
+                  style={{width: '68px', height: '68px', objectFit: 'cover', borderRadius: '6px', border: '1px solid #cbd5e1'}}
+                />
+                <div style={{fontSize: '0.85rem', color: '#475569', lineHeight: 1.4}}>
+                  <strong>Prescription photo attached</strong>
+                  <div>You can edit the extracted medicines below or click Analyze Prescription right away.</div>
+                </div>
+              </div>
+            )}
+
+            {prescriptionError && (
+              <div style={{marginBottom: '1rem', padding: '0.7rem 0.9rem', background: '#fffbeb', border: '1px solid #fde68a', borderRadius: '8px', color: '#92400e', fontSize: '0.85rem'}}>
+                {prescriptionError}
+              </div>
+            )}
+
+            <textarea
               value={prescriptionText}
               onChange={(e) => setPrescriptionText(e.target.value)}
               placeholder="e.g., Lisinopril 10mg daily, Metoprolol 25mg twice a day..."
-              style={{width: '100%', height: '150px', padding: '1rem', borderRadius: '8px', border: '1px solid #cbd5e1', marginBottom: '1.5rem', fontFamily: 'inherit', resize: 'vertical'}}
+              style={{width: '100%', height: '140px', padding: '1rem', borderRadius: '8px', border: '1px solid #cbd5e1', marginBottom: '1.25rem', fontFamily: 'inherit', resize: 'vertical'}}
             />
             <div style={{display: 'flex', justifyContent: 'flex-end', gap: '1rem'}}>
               <button onClick={() => setIsPrescriptionModalOpen(false)} style={{padding: '0.8rem 1.5rem', background: '#f1f5f9', color: '#475569', border: 'none', borderRadius: '8px', cursor: 'pointer', fontWeight: 'bold'}}>Cancel</button>
-              <button 
-                onClick={() => {
-                  if(!prescriptionText.trim()) return;
-                  setIsPrescriptionModalOpen(false);
-                  
-                  const visibleText = `Please analyze my prescription: ${prescriptionText}`;
-                  const hiddenPrompt = `You are a medical AI. Below is raw OCR text from a prescription image. Ignore any typos, gibberish, or scanning errors. DO NOT mention OCR errors, illegibility, or give any disclaimers. Just extract the actual medication names you can recognize, give a 1-sentence summary of what each is for, and state if it is safe for a cardiac patient. Keep it extremely concise and direct. Raw text: ${prescriptionText}`;
-                  
-                  handleSend(visibleText, hiddenPrompt);
-                  setPrescriptionText("");
+              <button
+                onClick={handleAnalyzePrescription}
+                disabled={isOcrProcessing || (!prescriptionText.trim() && !prescriptionImage)}
+                style={{
+                  padding: '0.8rem 1.5rem',
+                  background: isOcrProcessing || (!prescriptionText.trim() && !prescriptionImage) ? '#94a3b8' : 'var(--primary)',
+                  color: 'white',
+                  border: 'none',
+                  borderRadius: '8px',
+                  cursor: isOcrProcessing || (!prescriptionText.trim() && !prescriptionImage) ? 'not-allowed' : 'pointer',
+                  fontWeight: 'bold'
                 }}
-                style={{padding: '0.8rem 1.5rem', background: 'var(--primary)', color: 'white', border: 'none', borderRadius: '8px', cursor: 'pointer', fontWeight: 'bold'}}
               >
                 Analyze Prescription
               </button>

@@ -116,7 +116,7 @@ def get_doctors():
 @app.post("/api/doctors")
 def add_doctor(doc: Doctor):
     doctors = load_doctors()
-    new_doc = doc.dict()
+    new_doc = doc.model_dump()
     new_doc["id"] = str(len(doctors) + 1)
     doctors.append(new_doc)
     save_doctors(doctors)
@@ -153,7 +153,7 @@ def register_user(user: UserRegister):
     if any(u["email"] == user.email for u in users):
         raise HTTPException(status_code=400, detail="Email already registered")
     
-    new_user = user.dict()
+    new_user = user.model_dump()
     new_user["id"] = str(len(users) + 1)
     users.append(new_user)
     save_users(users)
@@ -169,3 +169,7 @@ def login_user(creds: UserLogin):
         if u["email"] == creds.email and u["password"] == creds.password:
             return {"status": "success", "user": {"name": u["name"], "email": u["email"]}}
     raise HTTPException(status_code=401, detail="Invalid email or password")
+
+if __name__ == "__main__":
+    import uvicorn
+    uvicorn.run(app, host="127.0.0.1", port=8000)
